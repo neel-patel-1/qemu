@@ -5,6 +5,16 @@ int qflex_loglevel = 0;
 static const QEMULogItem qflex_log_items[] = {
     { QFLEX_LOG_GENERAL, "gen",
       "show general QFLEX actions" },
+    { QFLEX_LOG_MAGIC_INST, "magic",
+      "log when magic instructions are hit" },
+    { QFLEX_LOG_MEM_TRACE, "mem-trace"
+      "log every memory instruction helper executed" },
+    { QFLEX_LOG_TB_EXEC, "tb"
+      "log every translation block executed" },
+    { QFLEX_LOG_FILE_ACCESS, "file"
+      "log qflex related file access" },
+    { QFLEX_LOG_MEM_TRACE_INST, "mem-trace-inst"
+      "log instruction traces" },
     { 0, NULL, NULL },
 };
 

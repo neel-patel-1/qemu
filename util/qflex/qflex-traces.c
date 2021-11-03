@@ -74,14 +74,14 @@ void qflex_inst_trace(uint32_t cpu_index, uint64_t asid, uint32_t inst) {
 #ifdef CONFIG_DEVTEROFLEX
     file_stream_write(qflexTraceState.instFiles[cpu_index], &inst, sizeof(inst));
 #endif
-    qflex_log_mask(QFLEX_LOG_FILE_ACCESS, "CPU[%"PRIu32"]:ASID[%"PRIu64"]:INST[0x%016"PRIx32"]\n", cpu_index, asid, inst);
+    qflex_log_mask(QFLEX_LOG_MEM_TRACE_INST, "CPU[%"PRIu32"]:ASID[%"PRIu64"]:INST[0x%016"PRIx32"]\n", cpu_index, asid, inst);
 }
 
 void qflex_inst_trace_full(QflexInstTraceFull_t trace) {
 #ifdef CONFIG_DEVTEROFLEX
     file_stream_write(qflexTraceState.instFiles[trace.cpu_index], &trace, sizeof(QflexInstTraceFull_t));
 #endif
-    qflex_log_mask(QFLEX_LOG_FILE_ACCESS, "CPU[%"PRIu32"]:ASID[%04"PRIu64"]:TID[%04"PRIu64"]:PC[0x%016"PRIx64"]:INST[0x%08"PRIx32"]\n", trace.cpu_index, trace.asid, trace.tid, trace.pc, trace.inst);
+    qflex_log_mask(QFLEX_LOG_MEM_TRACE_INST, "CPU[%"PRIu32"]:ASID[%04"PRIu64"]:TID[%04"PRIu64"]:PC[0x%016"PRIx64"]:INST[0x%08"PRIx32"]\n", trace.cpu_index, trace.asid, trace.tid, trace.pc, trace.inst);
 }
 
 typedef struct MemTraceReq_t {
@@ -91,7 +91,7 @@ typedef struct MemTraceReq_t {
 } MemTraceReq_t ;
 
 void qflex_mem_trace_memaccess(uint64_t vaddr, uint64_t hwaddr, uint64_t cpu_index, uint64_t type, int el) {
-    qflex_log_mask(QFLEX_LOG_MEM_TRACE, "CPU[%"PRIu64"]:MEM[%"PRIu64"]:VADDR[0x%016"PRIx64"]:PADDR[0x%016"PRIx64"]\n", cpu_index, type, vaddr, hwaddr);
+    qflex_log_mask(QFLEX_LOG_LDST, "CPU[%"PRIu64"]:MEM[%"PRIu64"]:VADDR[0x%016"PRIx64"]:PADDR[0x%016"PRIx64"]\n", cpu_index, type, vaddr, hwaddr);
 
 #ifdef CONFIG_DEVTEROFLEX
     MemTraceReq_t trace = {.vaddr = vaddr, .hwaddr = hwaddr, .type = type};

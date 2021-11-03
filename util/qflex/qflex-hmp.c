@@ -11,6 +11,23 @@
 #include "qflex/qflex.h"
 #include "qflex/qflex-traces.h"
 
+void hmp_qflex_log(Monitor *mon, const QDict *qdict)
+{
+    int mask;
+    const char *items = qdict_get_str(qdict, "items");
+
+    if (!strcmp(items, "none")) {
+        mask = 0;
+    } else {
+        mask = qflex_str_to_log_mask(items);
+        if (!mask) {
+            monitor_printf(mon, "None of your logging arguments matched.");
+            return;
+        }
+    }
+    qflex_set_log(mask);
+}
+
 void hmp_qflex_singlestep_start(Monitor *mon, const QDict *qdict) {
     int error = 0;
     if(!tcg_enabled()) {

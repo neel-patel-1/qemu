@@ -1729,6 +1729,19 @@ ERST
 #ifdef CONFIG_QFLEX
 
     {
+        .name       = "qflex-log",
+        .args_type  = "items:s",
+        .params     = "item1[,...]",
+        .help       = "activate logging of the specified items of qflex",
+        .cmd        = hmp_qflex_log,
+    },
+
+SRST
+``qflex-log`` *item1*\ [,...]
+  Activate logging of the specified items.
+ERST
+
+    {
         .name       = "qflex-singlestep-start",
         .args_type  = "",
         .params     = "",
