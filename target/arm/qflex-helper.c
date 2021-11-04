@@ -54,6 +54,7 @@ static inline void qflex_cmds(CPUState *cs, uint64_t nop_op) {
     switch(nop_op) {
         case QFLEX_SINGLESTEP_START: qflex_singlestep_start(); break;
         case QFLEX_SINGLESTEP_STOP: qflex_singlestep_stop(); break;
+        case QFLEX_PRINT_ASID_TID:  qflex_print_state_asid_tid(cs); break;
         default: break;
     }
 }

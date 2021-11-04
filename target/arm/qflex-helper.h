@@ -10,6 +10,8 @@
 
 #define QFLEX_GET_F(func) glue(qflex_get_, func)
 
+void qflex_print_state_asid_tid(CPUState* cs);
+
 /* helper.c
  */
 

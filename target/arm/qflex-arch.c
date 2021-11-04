@@ -38,3 +38,19 @@ int QFLEX_GET_ARCH(reg)(CPUState *cs, int reg_index) {
 uint64_t gva_to_hva(CPUState *cs, uint64_t addr, int access_type) {
     return gva_to_hva_arch(cs, addr, (MMUAccessType) access_type);
 }
+
+void qflex_print_state_asid_tid(CPUState* cs) {
+    CPUARMState *env = cs->env_ptr;
+    qemu_log("[MEM]CPU%" PRIu32 "\n"
+             "  TTBR0:0[0x%04" PRIx64 "]:1[0x%4" PRIx64 "]:2[0x%4" PRIx64 "]:3[0x%4" PRIx64 "]\n"
+             "  TTBR1:0[0x%04" PRIx64 "]:1[0x%4" PRIx64 "]:2[0x%4" PRIx64 "]:3[0x%4" PRIx64 "]\n"
+             "  CXIDR:0[0x%04" PRIx64 "]:1[0x%4" PRIx64 "]:2[0x%4" PRIx64 "]:3[0x%4" PRIx64 "]\n"
+             "  TPIDR:0[0x%016" PRIx64 "]:1[0x%016" PRIx64 "]:2[0x%016" PRIx64 "]:3[0x%016" PRIx64 "]\n"
+             "  TPIDX:0[0x%016" PRIx64 "]:R[0x%016" PRIx64 "]\n",
+             cs->cpu_index,
+             env->cp15.ttbr0_el[0], env->cp15.ttbr0_el[1], env->cp15.ttbr0_el[2], env->cp15.ttbr0_el[3],
+             env->cp15.ttbr1_el[0], env->cp15.ttbr1_el[1], env->cp15.ttbr1_el[2], env->cp15.ttbr1_el[3],
+             env->cp15.contextidr_el[0], env->cp15.contextidr_el[1], env->cp15.contextidr_el[2], env->cp15.contextidr_el[3],
+             env->cp15.tpidr_el[0], env->cp15.tpidr_el[1], env->cp15.tpidr_el[2], env->cp15.tpidr_el[3],
+             env->cp15.tpidruro_ns, env->cp15.tpidrro_el[0]);
+}
