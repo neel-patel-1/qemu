@@ -77,6 +77,12 @@ void qflex_inst_trace(uint32_t cpu_index, uint64_t asid, uint32_t inst) {
     qflex_log_mask(QFLEX_LOG_MEM_TRACE_INST, "CPU[%"PRIu32"]:ASID[%"PRIu64"]:INST[0x%016"PRIx32"]\n", cpu_index, asid, inst);
 }
 
+void qflex_inst_trace_medium(uint32_t cpu_index, QflexInstTraceMedium_t trace) {
+#ifdef CONFIG_DEVTEROFLEX
+    file_stream_write(qflexTraceState.instFiles[cpu_index], &trace, sizeof(QflexInstTraceMedium_t));
+#endif
+}
+
 void qflex_inst_trace_full(QflexInstTraceFull_t trace) {
 #ifdef CONFIG_DEVTEROFLEX
     file_stream_write(qflexTraceState.instFiles[trace.cpu_index], &trace, sizeof(QflexInstTraceFull_t));

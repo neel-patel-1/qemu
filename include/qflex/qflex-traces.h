@@ -6,8 +6,9 @@
 #define QFLEX_EXCEPTION         (1)
 
 // Flags for gen_trace
-#define QFLEX_LOG_TINY_INST     (1)
-#define QFLEX_LOG_GEN_FULL_INST (2)
+#define QFLEX_GEN_TRACE_TINY_INST (0)
+#define QFLEX_GEN_TRACE_MEDIUM    (1)
+#define QFLEX_GEN_TRACE_FULL_INST (2)
 
 typedef struct QflexTraceState_t {
 #ifdef CONFIG_DEVTEROFLEX
@@ -35,8 +36,16 @@ typedef struct QflexInstTraceFull_t {
     uint64_t pc;
 } QflexInstTraceFull_t;
 
+typedef struct QflexInstTraceMedium_t {
+    uint64_t tid;
+    uint64_t tid2;
+    uint16_t asid;
+    uint16_t el;
+} QflexInstTraceMedium_t;
+
 // ------ TRACE Memory Requests --------
 void qflex_inst_trace(uint32_t cpu_index, uint64_t asid, uint32_t inst);
+void qflex_inst_trace_medium(uint32_t cpu_index, QflexInstTraceMedium_t trace);
 void qflex_inst_trace_full(QflexInstTraceFull_t trace);
 
 void qflex_mem_trace_init(int core_count);
