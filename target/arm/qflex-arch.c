@@ -1,5 +1,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internals.h"
+
 #include "qflex-helper.h"
 #include "qflex/qflex.h"
 
@@ -17,17 +19,20 @@ int      QFLEX_GET_ARCH(el)(CPUState *cs) { return arm_current_el(ENV(cs)); }
  * CnP:   bit  [0]
  */
 uint64_t QFLEX_GET_ARCH(asid)(CPUState *cs) {
-    int curr_el = arm_current_el(ENV(cs)); // Necessary?
-    if (true /* TODO */) {
-        return ENV(cs)->cp15.ttbr0_el[curr_el] >> 48;
+    if (true /* TODO: when do we need ttbr1 ? */) {
+        return ENV(cs)->cp15.ttbr0_ns >> 48;
     } else {
-        return ENV(cs)->cp15.ttbr1_el[curr_el] >> 48;
+        return ENV(cs)->cp15.ttbr1_ns >> 48;
     }
 }
 
 uint64_t QFLEX_GET_ARCH(tid)(CPUState *cs) {
-    int curr_el = arm_current_el(ENV(cs)); // Necessary?
-    return ENV(cs)->cp15.tpidr_el[curr_el];
+    int curr_el = arm_current_el(ENV(cs));
+    if(curr_el == 0) {
+        return ENV(cs)->cp15.tpidrurw_ns;
+    } else {
+        return ENV(cs)->cp15.tpidrprw_ns;
+    }
 }
 
 int QFLEX_GET_ARCH(reg)(CPUState *cs, int reg_index) {
