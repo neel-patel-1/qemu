@@ -150,8 +150,8 @@ void HELPER(qflex_mem_trace)(CPUARMState* env, uint64_t addr, uint64_t type) {
                 };
                 switch(qflexTraceState.gen_inst_trace_type) {
                     case QFLEX_GEN_TRACE_TINY_INST:     qflex_inst_trace(cs->cpu_index, QFLEX_GET_ARCH(asid)(cs), inst); break;
-                    case QFLEX_GEN_TRACE_MEDIUM:      qflex_inst_trace_medium(cs->cpu_index, traceMed); break;
-                    case QFLEX_GEN_TRACE_FULL_INST:  qflex_inst_trace_full(trace);  break;
+                    case QFLEX_GEN_TRACE_MEDIUM:      qflex_inst_trace_medium(cs->cpu_index, &traceMed); break;
+                    case QFLEX_GEN_TRACE_FULL_INST:  qflex_inst_trace_full(&trace);  break;
                 }
             }
         }

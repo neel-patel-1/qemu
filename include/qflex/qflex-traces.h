@@ -45,8 +45,8 @@ typedef struct QflexInstTraceMedium_t {
 
 // ------ TRACE Memory Requests --------
 void qflex_inst_trace(uint32_t cpu_index, uint64_t asid, uint32_t inst);
-void qflex_inst_trace_medium(uint32_t cpu_index, QflexInstTraceMedium_t trace);
-void qflex_inst_trace_full(QflexInstTraceFull_t trace);
+void qflex_inst_trace_medium(uint32_t cpu_index, QflexInstTraceMedium_t *trace);
+void qflex_inst_trace_full(QflexInstTraceFull_t *trace);
 
 void qflex_mem_trace_init(int core_count);
 void qflex_mem_trace_start(size_t nb_insn, int trace_type);
