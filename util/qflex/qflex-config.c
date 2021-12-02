@@ -84,7 +84,7 @@ static void qflex_configure(QemuOpts *opts, Error **errp) {
             error |= 1;
         }
         if (error)
-            exit(1);
+            exit(EXIT_FAILURE);
     }
 }
 
@@ -93,7 +93,7 @@ static void qflex_log_configure(const char *opts) {
     mask = qflex_str_to_log_mask(opts);
     if (!mask) {
         qflex_print_log_usage(opts, stdout);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     qflex_set_log(mask);
 }
@@ -110,7 +110,7 @@ int qflex_parse_opts(int index, const char *optarg, Error **errp) {
     case QEMU_OPTION_qflex:
         opts = qemu_opts_parse_noisily(
             qemu_find_opts("qflex"), optarg, false);
-        if (!opts) { exit(1); }
+        if (!opts) { exit(EXIT_FAILURE); }
         qflex_configure(opts, errp);
         qemu_opts_del(opts);
         break;
@@ -120,7 +120,7 @@ int qflex_parse_opts(int index, const char *optarg, Error **errp) {
     case QEMU_OPTION_qflex_gen_mem_trace:
         opts = qemu_opts_parse_noisily(
                 qemu_find_opts("qflex-gen-mem-trace"), optarg, false);
-        if(!opts) { exit(1); }
+        if(!opts) { exit(EXIT_FAILURE); }
         qflex_gen_mem_trace_configure(opts, errp);
         qemu_opts_del(opts);
         break;
@@ -128,7 +128,7 @@ int qflex_parse_opts(int index, const char *optarg, Error **errp) {
 	case QEMU_OPTION_devteroflex:
 		opts = qemu_opts_parse_noisily(qemu_find_opts("devteroflex"),
 											   optarg, false);
-		if (!opts) { exit(1); }
+		if (!opts) { exit(EXIT_FAILURE); }
 		devteroflex_configure(opts, errp);
         qemu_opts_del(opts);
 		break;

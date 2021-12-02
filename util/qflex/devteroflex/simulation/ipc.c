@@ -29,7 +29,7 @@ int initIPC(ssize_t *socket_fd, const char* filename) {
   return 0;
 
 failed:
-  exit(1);
+  exit(EXIT_FAILURE);
   return -1;
 }
 
