@@ -81,7 +81,7 @@ void hmp_qflex_mem_trace_log_stats(Monitor *mon, const QDict *qdict) {
 #include "qflex/devteroflex/verification.h"
 #include "qflex/devteroflex/custom-instrumentation.h"
 void hmp_devteroflex_start(Monitor *mon, const QDict *qdict) {
-    devteroflex_init(true, true);
+    devteroflex_init(true, true, -1);
 }
 
 void hmp_devteroflex_gen_verification_start(Monitor *mon, const QDict *qdict) {

@@ -48,23 +48,26 @@ QemuOptsList qemu_qflex_gen_mem_trace_opts = {
 #include "qflex/devteroflex/devteroflex.h"
 QemuOptsList qemu_devteroflex_opts = {
     .name = "devteroflex",
-    .implied_opt_name = "enable",
+    .implied_opt_name = "run",
     .merge_lists = true,
     .head = QTAILQ_HEAD_INITIALIZER(qemu_devteroflex_opts.head),
     .desc = {
         {
-            .name = "enable",
+            .name = "run",
             .type = QEMU_OPT_BOOL,
+        },
+        {
+            .name = "dram-pages",
+            .type = QEMU_OPT_NUMBER,
         },
         { /* end of list */ }
     },
 };
 
 static void devteroflex_configure(QemuOpts *opts, Error **errp) {
-	bool enable;
-    enable = qemu_opt_get_bool(opts, "enable", false);
-	devteroflex_init(false, enable);
-
+    bool run = qemu_opt_get_bool(opts, "run", false);
+    uint64_t fpga_dram_size = qemu_opt_get_number(opts, "dram-pages", -1);
+    devteroflex_init(false, run, fpga_dram_size);
 }
 #endif /* CONFIG_DEVTEROFLEX */
 

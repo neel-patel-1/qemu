@@ -7,12 +7,17 @@
 #include "qemu/thread.h"
 #include "qflex/qflex.h"
 
+#define PAGE_SIZE (4096)
+
+#ifndef MemoryAccessType
 // See cpu.h to match MMUAccessType
 typedef enum MemoryAccessType {
     DATA_LOAD  = 0,
     DATA_STORE = 1,
     INST_FETCH = 2
 } MemoryAccessType;
+#define MemoryAccessType
+#endif
 
 typedef struct DevteroflexConfig {
     bool enabled;
@@ -21,10 +26,7 @@ typedef struct DevteroflexConfig {
 
 extern DevteroflexConfig devteroflexConfig;
 
-static inline void devteroflex_init(bool run, bool enabled) {
-    devteroflexConfig.enabled = enabled;
-    devteroflexConfig.running = run;
-}
+void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages);
 
 static inline void devteroflex_start(void) {
     devteroflexConfig.enabled = true;

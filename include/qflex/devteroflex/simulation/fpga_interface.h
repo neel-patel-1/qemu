@@ -1,15 +1,14 @@
-#pragma once
-
 #include "fpga.h"
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifndef PAGE_SIZE
 #define PAGE_SIZE (4096LLU)
+#endif
 #define GET_PAGE_MASK(addr) (addr & ~(PAGE_SIZE-1))
-#define GET_PPN_FROM_PADDR(addr) (addr >> 12) // log2(PAGE_SIZE)
-#define GET_PADDR_FROM_PPN(addr) (addr << 12) // log2(PAGE_SIZE)
+#define GET_PPN_FROM_PADDR(addr) (addr >> 12) // log2(4096)
 
 /**
  * @file This file defines the software messages for FPGA communication.
@@ -17,7 +16,7 @@
 
 typedef enum MessageType {
   // FPGA -> QEMU
-  sPageFaultNotify = 4,
+  sPageFault = 4,
   sEvictNotify = 5,
   sEvictDone = 6,
   // QEMU -> FPGA
@@ -26,63 +25,82 @@ typedef enum MessageType {
   sEvictReply = 3
 } MessageType;
 
-// QEMU requests a page eviction.
-typedef struct QEMUPageEvictRequest {
-  MessageType type; // constant 7
-  uint32_t vpn_lo;
-  uint32_t vpn_hi;
-  uint32_t pid;
-} QEMUPageEvictRequest;
+typedef struct MessageFPGA
+{
+    union
+    {
+        struct
+        { // Common types
+            MessageType type;
+            uint32_t vpn_lo;
+            uint32_t vpn_hi;
+            uint32_t asid;
+        };
+        struct
+        { // type == 2
+            MessageType type;
+            uint32_t vpn_lo;
+            uint32_t vpn_hi;
+            uint32_t asid;
+            uint32_t permission;
+            uint32_t thid; // -1 means no wake up.
+            uint32_t ppn;
+        } MissReply;
+        struct
+        { // type == 3
+            MessageType type;
+            uint32_t vpn_lo;
+            uint32_t vpn_hi;
+            uint32_t asid;
+            uint32_t old_ppn;
+        } EvictReply;
+        struct
+        { // type == 4
+            MessageType type;
+            uint32_t vpn_lo;
+            uint32_t vpn_hi;
+            uint32_t asid;
+            uint32_t permission;
+            uint32_t thid;
+        } PageFaultNotif;
+        struct
+        { // type == 5
+            MessageType type;
+            uint32_t vpn_lo;
+            uint32_t vpn_hi;
+            uint32_t asid;
+            uint32_t ppn;
+            uint32_t permission;
+            uint32_t modified;
+        } EvictNotif;
+        struct
+        { // type == 6
+            MessageType type;
+            uint32_t vpn_lo;
+            uint32_t vpn_hi;
+            uint32_t asid;
+            uint32_t ppn;
+            uint32_t permission;
+            uint32_t modified;
+        } EvictDone;
+        struct
+        { // type == 7
+            MessageType type;
+            uint32_t vpn_lo;
+            uint32_t vpn_hi;
+            uint32_t asid;
+        } PageEvictRequest;
+        uint32_t words[16];
+        uint8_t bytes[64];
+    };
+} MessageFPGA;
+
 
 // QEMU resolves a page fault.
-typedef struct QEMUMissReply {
-  MessageType type; // constant 2
-  uint32_t vpn_lo;
-  uint32_t vpn_hi;
-  uint32_t pid;
-  uint32_t permission;
-  uint32_t tid; // -1 means no wake up.
-  uint32_t ppn;
-} QEMUMissReply;
-
 #define VPN_ALIGN(va) (va >> 12)
 #define VPN_GET_HI(va) ((VPN_ALIGN(va) >> 32) & 0xFFFFFFFF)
 #define VPN_GET_LO(va) (VPN_ALIGN(va) & 0xFFFFFFFF)
 #define GET_NZCV(nzcv) (nzcv & 0xF)
-
-// QEMU confirms a page eviction. 
-typedef struct QEMUEvictReply {
-  MessageType type; // constant 3
-  uint32_t vpn_lo;
-  uint32_t vpn_hi;
-  uint32_t pid;
-  uint32_t old_ppn;
-  // uint32_t synonym_v;
-} QEMUEvictReply;
-
-// FPGA finds a page fault.
-typedef struct PageFaultNotification {
-  MessageType type; // constant 4
-  uint32_t vpn_lo;
-  uint32_t vpn_hi;
-  uint32_t pid;
-  uint32_t permission;
-  uint32_t tid;
-} PageFaultNotification;
-
-// type = 5: FPGA starts the page eviction. (No page movement if the modified is not dirty).
-// type = 6: FPGA finishes the page eviction (The page is available in the page buffer).
-typedef struct PageEvictNotification {
-  MessageType type; // maybe 5(start) or 6(done)
-  uint32_t vpn_lo;
-  uint32_t vpn_hi;
-  uint32_t pid;
-
-  uint32_t ppn;
-  uint32_t permission;
-  uint32_t modified;
-} PageEvictNotification;
-
 
 // helper class
 typedef struct ArmflexArchState {
@@ -103,8 +121,6 @@ int pushPageToFPGA(const struct FPGAContext *c, uint64_t paddr, void *page);
 int fetchPageFromFPGA(const struct FPGAContext *c, uint64_t paddr, void *buffer);
  
 int registerAndPushState(const struct FPGAContext *c, uint32_t thread_id, uint32_t process_id, const struct ArmflexArchState *state);
-
-int pushTransplantState(const struct FPGAContext *c, uint32_t thread_id, uint32_t process_id, const struct ArmflexArchState *state);
 int queryThreadState(const struct FPGAContext *c, uint32_t *pending_threads);
 int transplantBack(const struct FPGAContext *c, uint32_t thread_id, struct ArmflexArchState *state);
 
@@ -116,41 +132,16 @@ int transplant_freePending(const FPGAContext *c, uint32_t pending_threads);
 int transplant_waitTillPending(const FPGAContext *c, uint32_t *pending_threads);
 int transplant_start(const FPGAContext *c, uint32_t thread_id);
 
-static inline void makeEvictRequest(int pid, uint64_t va,
-                      QEMUPageEvictRequest *evict_request) {
-  evict_request->type = sPageEvict;
-  evict_request->pid = pid;
-  evict_request->vpn_hi = VPN_GET_HI(va);
-  evict_request->vpn_lo = VPN_GET_LO(va);
-}
 
-static inline void makeEvictReply(PageEvictNotification *notif, QEMUEvictReply *evict_reply) {
-  evict_reply->type = sEvictReply;
-  evict_reply->old_ppn = notif->ppn;
-  evict_reply->pid = notif->pid;
-  evict_reply->vpn_hi = notif->vpn_hi;
-  evict_reply->vpn_lo = notif->vpn_lo;
-}
-
-static inline void makeMissReply(int type, int tid, int pid, uint64_t va, uint64_t paddr,
-                   QEMUMissReply *miss_reply) {
-  miss_reply->type = sMissReply;
-  miss_reply->tid = tid;
-  miss_reply->pid = pid;
-  miss_reply->vpn_hi = VPN_GET_HI(va);
-  miss_reply->vpn_lo = VPN_GET_LO(va);
-
-  miss_reply->permission = type;
-
-  miss_reply->ppn = GET_PPN_FROM_PADDR(paddr);
-}
-
-typedef enum FPGA_MMUAccessType {
-    FPGA_MMU_DATA_LOAD  = 0,
-    FPGA_MMU_DATA_STORE = 1,
-    FPGA_MMU_INST_FETCH = 2
-} FPGA_MMUAccessType;
-
+// See cpu.h to match MMUAccessType
+#ifndef MemoryAccessType
+typedef enum MemoryAccessType {
+    DATA_LOAD  = 0,
+    DATA_STORE = 1,
+    INST_FETCH = 2
+} MemoryAccessType;
+#define MemoryAccessType
+#endif
 
 /* This describes layour of arch state elements
  *
@@ -167,3 +158,34 @@ typedef enum FPGA_MMUAccessType {
 #define ARCH_PSTATE_CF_MASK     (1)    // 64bit 1
 #define ARCH_PSTATE_VF_MASK     (0)    // 64bit 0
 #define ARMFLEX_TOT_REGS        (35)
+
+static inline void makeEvictRequest(int asid, uint64_t va, MessageFPGA *evict_request)
+{
+    evict_request->type = sPageEvict;
+    evict_request->asid = asid;
+    evict_request->vpn_hi = VPN_GET_HI(va);
+    evict_request->vpn_lo = VPN_GET_LO(va);
+}
+
+static inline void makeEvictReply(MessageFPGA *notif, MessageFPGA *evict_reply)
+{
+    evict_reply->type = sEvictReply;
+    evict_reply->asid = notif->asid;
+    evict_reply->vpn_hi = notif->vpn_hi;
+    evict_reply->vpn_lo = notif->vpn_lo;
+
+    evict_reply->EvictReply.old_ppn = notif->EvictNotif.ppn;
+}
+
+static inline void makeMissReply(int perm, int thid, int asid, uint64_t va, uint64_t paddr,
+                                 MessageFPGA *miss_reply)
+{
+    miss_reply->type = sMissReply;
+    miss_reply->asid = asid;
+    miss_reply->vpn_hi = VPN_GET_HI(va);
+    miss_reply->vpn_lo = VPN_GET_LO(va);
+
+    miss_reply->MissReply.thid = thid;
+    miss_reply->MissReply.permission = perm;
+    miss_reply->MissReply.ppn = GET_PPN_FROM_PADDR(paddr);
+}
