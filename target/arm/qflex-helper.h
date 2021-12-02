@@ -19,5 +19,6 @@ void qflex_print_state_asid_tid(CPUState* cs);
  * returns '-1' on permission fault or on failure
  */
 uint64_t gva_to_hva_arch(CPUState *cs, uint64_t vaddr, MMUAccessType access_type);
+uint64_t gva_to_hva_arch_with_asid(CPUState *cs, uint64_t vaddr, MMUAccessType access_type, uint64_t asid_reg);
 
 #endif /* QFLEX_HELPER_H */

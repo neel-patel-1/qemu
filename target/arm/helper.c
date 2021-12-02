@@ -13452,4 +13452,26 @@ uint64_t gva_to_hva_arch(CPUState *cs, uint64_t vaddr, MMUAccessType access_type
 
     return (uint64_t) phys_addr;
 }
+
+/**
+ * @brief Translates a guest virtual address to host for an ASID that is not part of the CPUState anymore.
+ * 
+ * @param cs CPUState
+ * @param vaddr virtual addr to translate
+ * @param access_type type of access: 0 = DATA_LOAD; 1 = DATA_STORE; 2 = INST_FETCH;
+ * @param asid_reg ASID reg to replace for translation
+ * @return uint64_t host virtual address for that ASID
+ */
+uint64_t gva_to_hva_arch_with_asid(CPUState *cs, uint64_t vaddr, MMUAccessType access_type, uint64_t asid_reg) {
+#ifdef CONFIG_USER_ONLY
+    return g2h(vaddr) ? (uint64_t)g2h(vaddr) : -1;
+#endif
+    CPUARMState *env = cs->env_ptr;
+    uint64_t old_ttbr = env->cp15.ttbr0_ns;
+    env->cp15.ttbr0_ns = asid_reg;
+    uint64_t hva = gva_to_hva_arch(cs, vaddr, access_type);
+    env->cp15.ttbr0_ns = old_ttbr;
+    return hva;
+}
+
 #endif
