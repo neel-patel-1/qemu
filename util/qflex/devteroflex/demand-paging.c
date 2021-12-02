@@ -157,5 +157,4 @@ void devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
     free(synonyms_list_ipt);
     list_size = ipt_check_synonyms(hvp, &synonyms_list_ipt);
     assert(list_size <= 0); 
-    assert(!synonyms_list_ipt);
 }
