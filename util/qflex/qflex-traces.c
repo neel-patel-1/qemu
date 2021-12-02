@@ -51,7 +51,7 @@ void qflex_mem_trace_init(int core_count) {
     qflexTraceState.fileInit = true;
     char filename[sizeof "mem_trace_00"];
     for(int i = 0; i < core_count; i++) {
-        if(i > 64) exit(1);
+        if(i > 64) exit(EXIT_FAILURE);
         sprintf(filename, "mem_trace_%02d", i);
         qemu_log("Filename %s\n", filename);
         file_stream_open(&qflexTraceState.traceFiles[i], filename);
@@ -62,7 +62,7 @@ void qflex_mem_trace_init(int core_count) {
 
     char filenameInst[sizeof "inst_trace_00"];
     for(int i = 0; i < core_count; i++) {
-         if(i > 64) exit(1);
+         if(i > 64) exit(EXIT_FAILURE);
         sprintf(filenameInst, "inst_trace_%02d", i);
         qemu_log("Filename %s\n", filename);
         file_stream_open(&qflexTraceState.instFiles[i], filenameInst);
@@ -138,8 +138,10 @@ void qflex_mem_trace_gen_helper_stop(void) {
 void qflex_mem_trace_start(size_t nb_insn, int trace_type) {
     qflexTraceState.total_trace_insts = nb_insn;
     qflexTraceState.gen_helper = true;
-    qflexTraceState.gen_trace = true;
-    qflexTraceState.gen_inst_trace_type = trace_type;
+    if(trace_type >= 0) {
+        qflexTraceState.gen_trace = true;
+        qflexTraceState.gen_inst_trace_type = trace_type;
+    }
     qflex_tb_flush();
 }
 

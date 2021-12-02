@@ -13,10 +13,12 @@
 
 uint64_t QFLEX_GET_ARCH(pc)(CPUState *cs);
 uint64_t QFLEX_GET_ARCH(asid)(CPUState *cs);
+uint64_t QFLEX_GET_ARCH(asid_reg)(CPUState *cs);
 uint64_t QFLEX_GET_ARCH(tid)(CPUState *cs);
 int      QFLEX_GET_ARCH(el)(CPUState *cs);
 int      QFLEX_GET_ARCH(reg)(CPUState *cs, int reg_index);
 
 uint64_t gva_to_hva(CPUState *cs, uint64_t addr, int access_type);
+uint64_t gva_to_hva_with_asid(uint64_t asid_reg, uint64_t vaddr, int access_type);
 
 #endif /* QFLEX_ARCH_H */

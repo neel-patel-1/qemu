@@ -34,10 +34,11 @@ QflexState_t qflexState = {
 
 int qflex_singlestep(CPUState *cpu) {
     int ret;
+    qflex_update_exit_main_loop(false);
     ret = qflex_cpu_step(cpu);
-
     if(ret) {
-        qemu_log("QFLEX: Singlestep went wrong\n");
+        // TODO How to handle this case?
+        // qemu_log("QFLEX: Singlestep went wrong\n"); 
     }
 
     return ret;
@@ -45,17 +46,19 @@ int qflex_singlestep(CPUState *cpu) {
 
 int qflex_adaptative_execution(CPUState *cpu) {
     while(1) {
-        if(!qflex_is_exit_main_loop()) {
-            break;
-        } 
-        else if(qflexState.singlestep) {
-            qflex_singlestep(cpu);
-        }
 #ifdef CONFIG_DEVTEROFLEX
-        else if(devteroflex_is_running()) {
+        if(devteroflex_is_running()) {
             devteroflex_singlestepping_flow();
         }
+        else if (qflexState.singlestep) {
+#else 
+        if (qflexState.singlestep) {
 #endif
+            qflex_singlestep(cpu);
+        }
+        else if(!qflex_is_exit_main_loop()) {
+            break;
+        } 
     }
     return 0;
 }

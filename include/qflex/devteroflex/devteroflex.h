@@ -7,12 +7,17 @@
 #include "qemu/thread.h"
 #include "qflex/qflex.h"
 
+#define PAGE_SIZE (4096)
+
+#ifndef MemoryAccessType
 // See cpu.h to match MMUAccessType
 typedef enum MemoryAccessType {
     DATA_LOAD  = 0,
     DATA_STORE = 1,
     INST_FETCH = 2
 } MemoryAccessType;
+#define MemoryAccessType
+#endif
 
 typedef struct DevteroflexConfig {
     bool enabled;
@@ -21,10 +26,7 @@ typedef struct DevteroflexConfig {
 
 extern DevteroflexConfig devteroflexConfig;
 
-static inline void devteroflex_init(bool run, bool enabled) {
-    devteroflexConfig.enabled = enabled;
-    devteroflexConfig.running = run;
-}
+void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages);
 
 static inline void devteroflex_start(void) {
     devteroflexConfig.enabled = true;
@@ -40,7 +42,10 @@ static inline void devteroflex_stop(void) {
     qflex_tb_flush();
 }
 
+void devteroflex_stop_full(void);
+
 static inline bool devteroflex_is_running(void) { return devteroflexConfig.enabled && devteroflexConfig.running; }
+static inline bool devteroflex_is_enabled(void) { return devteroflexConfig.enabled; }
 
 /* The following functions are architecture specific, so they are
  * in the architecture target directory.
@@ -118,7 +123,6 @@ bool devteroflex_get_paddr(CPUState *cpu, uint64_t addr, uint64_t access_type,  
  */
 bool devteroflex_get_ppage(CPUState *cpu, uint64_t addr, uint64_t access_type,  uint64_t *host_phys_page, uint64_t *page_size);
 
-int devteroflex_execution_flow(void);
 int devteroflex_singlestepping_flow(void);
 
 #endif /* DEVTEROFLEX_H */

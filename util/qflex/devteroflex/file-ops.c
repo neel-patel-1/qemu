@@ -24,7 +24,7 @@ int file_stream_open(FILE **fp, const char *filename) {
     if (mkdir(FILE_ROOT_DIR, 0777) && errno != EEXIST) {
         qflex_log_mask(QFLEX_LOG_FILE_ACCESS,
                        "'mkdir "FILE_ROOT_DIR"' failed\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     snprintf(filepath, PATH_MAX, FILE_ROOT_DIR"/%s", filename);
@@ -33,7 +33,7 @@ int file_stream_open(FILE **fp, const char *filename) {
         qflex_log_mask(QFLEX_LOG_FILE_ACCESS,
                        "ERROR: File stream open failed\n"
                        "    filepath:%s\n", filepath);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     return 0;
@@ -147,7 +147,7 @@ void *devteroflex_pack_protobuf(DevteroflexArchState *devteroflex, size_t *size)
 void devteroflex_unpack_protobuf(DevteroflexArchState *devteroflex, void *stream, size_t size) {
     if(devteroflex == NULL) {
         fprintf(stderr, "Alloc Devteroflex state ptr before passing it as argument\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     // protobuf stream -> protobuf struct
@@ -155,7 +155,7 @@ void devteroflex_unpack_protobuf(DevteroflexArchState *devteroflex, void *stream
     state = devteroflex_arch_state_p__unpack(NULL, size, stream); // Deserialize the serialized input
     if (state == NULL) {
         fprintf(stderr, "Error unpacking DEVTEROFLEX state protobuf message\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     // protobuf struct -> devteroflex struct

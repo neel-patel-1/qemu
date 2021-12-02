@@ -13,7 +13,7 @@ typedef struct FPGAContext FPGAContext;
 
 typedef enum MessageType {
     // FPGA -> QEMU
-    sPageFaultNotify = 4,
+    sPageFault = 4,
     sEvictNotify = 5,
     sEvictDone = 6,
     // QEMU -> FPGA

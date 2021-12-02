@@ -12,7 +12,7 @@
 #ifdef CONFIG_DEVTEROFLEX
 #include "qflex/devteroflex/devteroflex.h"
 #include "qflex/devteroflex/verification.h"
-#include "qflex/devteroflex/page-demander.h"
+#include "qflex/devteroflex/demand-paging.h"
 #endif /* CONFIG_DEVTEROFLEX */
 
 
@@ -158,7 +158,7 @@ void HELPER(qflex_mem_trace)(CPUARMState* env, uint64_t addr, uint64_t type) {
     }
 
 #ifdef CONFIG_DEVTEROFLEX
-    if(devteroflex_is_running()) {
+    if(devteroflex_is_enabled()) {
         if(type != MMU_INST_FETCH) {
             devteroflex_synchronize_page(cs, addr, type);
         }

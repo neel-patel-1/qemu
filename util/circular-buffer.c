@@ -11,14 +11,14 @@
 // The definition of our circular buffer structure is hidden from the user
 struct circular_buf_t
 {
-    uint8_t *buffer;
+    uint64_t *buffer;
     size_t head;
     size_t tail;
     size_t max; // of the buffer
     bool full;
 };
 
-#pragma mark - Private Functions -
+//#pragma mark - Private Functions -
 
 static void advance_pointer(cbuf_handle_t cbuf)
 {
@@ -43,9 +43,9 @@ static void retreat_pointer(cbuf_handle_t cbuf)
     cbuf->tail = (cbuf->tail + 1) % cbuf->max;
 }
 
-#pragma mark - APIs -
+//#pragma mark - APIs -
 
-cbuf_handle_t circular_buf_init(uint8_t *buffer, size_t size)
+cbuf_handle_t circular_buf_init(uint64_t *buffer, size_t size)
 {
     assert(buffer && size);
 
@@ -104,7 +104,7 @@ size_t circular_buf_capacity(cbuf_handle_t cbuf)
     return cbuf->max;
 }
 
-void circular_buf_put(cbuf_handle_t cbuf, uint8_t data)
+void circular_buf_put(cbuf_handle_t cbuf, uint64_t data)
 {
     assert(cbuf && cbuf->buffer);
 
@@ -113,7 +113,7 @@ void circular_buf_put(cbuf_handle_t cbuf, uint8_t data)
     advance_pointer(cbuf);
 }
 
-int circular_buf_put2(cbuf_handle_t cbuf, uint8_t data)
+int circular_buf_try_put(cbuf_handle_t cbuf, uint64_t data)
 {
     int r = -1;
 
@@ -129,7 +129,7 @@ int circular_buf_put2(cbuf_handle_t cbuf, uint8_t data)
     return r;
 }
 
-int circular_buf_get(cbuf_handle_t cbuf, uint8_t *data)
+int circular_buf_get(cbuf_handle_t cbuf, uint64_t *data)
 {
     assert(cbuf && data && cbuf->buffer);
 

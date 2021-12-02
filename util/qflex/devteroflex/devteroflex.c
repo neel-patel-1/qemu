@@ -8,7 +8,8 @@
 #include "qflex/qflex-arch.h"
 
 #include "qflex/devteroflex/devteroflex.h"
-#include "qflex/devteroflex/page-demander.h"
+#include "qflex/devteroflex/demand-paging.h"
+#include "qflex/qflex-traces.h"
 
 #ifdef AWS_FPGA
 #include "qflex/devteroflex/aws/fpga.h"
@@ -18,237 +19,336 @@
 #include "qflex/devteroflex/simulation/fpga_interface.h"
 #endif
 
-
 DevteroflexConfig devteroflexConfig = { false, false };
 static FPGAContext c;
 static DevteroflexArchState state;
 
-static uint64_t insert_entry_get_ppn(uint64_t hvp, uint64_t ipt_bits) {
-    uint64_t paddr;
-    int ret = devteroflex_ipt_add_entry(hvp, ipt_bits, &paddr);
-    if(ret == SYNONYM) {
-        return paddr;
-    } else if (ret == PAGE) {
-        return get_free_paddr();
-    } else {
-        perror("IPT Table error in adding entry");
-        return -1;
-    }
-}
-
-void devteroflex_push_page_fault(uint64_t hvp, uint64_t ipt_bits) {
-     QEMUMissReply reply = {
-        .type = sMissReply,
-        .vpn_hi = VPN_GET_HI(IPT_GET_VA(ipt_bits)),
-        .vpn_lo = VPN_GET_LO(IPT_GET_VA(ipt_bits)),
-        .pid = IPT_GET_PID(ipt_bits),
-        .permission = IPT_GET_PER(ipt_bits)
-    };
-    
-    uint64_t paddr = -1;
-    int ret = devteroflex_ipt_add_entry(hvp, ipt_bits, &paddr);
-    if (ret == SYNONYM) {
-        reply.ppn = GET_PPN_FROM_PADDR(paddr);
-    } else if (ret == PAGE) {
-        reply.ppn = 0; //TODO devteroflex_pop_paddr();
-        pushPageToFPGA(&c, reply.ppn, (void*) hvp);
-    }
-    
-    sendMessageToFPGA(&c, (void *) &reply, sizeof(reply));
-}
-
-// TODO:
-/* Evictions are done lazely, and translation from GVA to HVA require the CPUState, which 
- * might already have changed. We must store the previously translated gva2hva somewhere.
- */
-static void handle_evict_notify(PageEvictNotification *message) {
-    /*
-    uint64_t ipt_bits = IPT_COMPRESS(IPT_ASSEMBLE_64(message->vpn_hi, message->vpn_lo), message->pid, message->permission);
-
-    CPUState *cpu = qemu_get_cpu(message->tid);
-    uint64_t hvp = gva_to_hva(cpu, IPT_ASSEMBLE_64(message->vpn_hi, message->vpn_lo) & PAGE_MASK, message->permission);
-    assert(hvp != -1);
-
-    if(message->modified) {
-        int mask = 0;
-        for(int i = 0; i < 32; i++) {
-            mask = 1 << i;
-            if(!(evict_pending_v & mask)) {
-                evict_pending_v |= mask;
-                //evict_pending[i][0] = hvp;
-                evict_pending[i][1] = ipt_bits;
-                break;
-            }
-        }
-    } else {
-        devteroflex_ipt_evict(hvp, ipt_bits);
-    }
-    */
-}
-
-// TODO: Same as Evict Notify
-static void handle_evict_writeback(PageEvictNotification* message) {
-    /*
-    uint64_t ipt_bits = IPT_COMPRESS(IPT_ASSEMBLE_64(message->vpn_hi, message->vpn_lo), message->pid, message->permission);
-    CPUState *cpu = qemu_get_cpu(message->tid);
-    uint64_t hvp = gva_to_hva(cpu, IPT_ASSEMBLE_64(message->vpn_hi, message->vpn_lo), message->permission);
-    assert(hvp != -1);
-
-    fetchPageFromFPGA(&c, message->ppn, (void *) hvp);
-    devteroflex_ipt_evict(hvp, ipt_bits);
-    run_pending_raw(hvp);
-
-    int mask = 0;
-    for(int i = 0; i < 32; i++) {
-        mask = 1 << i;
-        if(evict_pending_v & mask) {
-            if(ipt_bits == evict_pending[i][1]) {
-                evict_pending_v &= ~mask;
-                assert(hvp == evict_pending[i][0]);
-                break;
-            }
-        }
-    }
-    */
-}
-
-
-static void handle_page_fault(PageFaultNotification *message) {
-    CPUState *cpu;
-    CPU_FOREACH(cpu) {
-        if(message->tid == cpu->cpu_index) 
-            break;
-    }
-    assert(message->tid == cpu->cpu_index);
-
-    uint64_t ipt_bits = IPT_COMPRESS(IPT_ASSEMBLE_64(message->vpn_hi, message->vpn_lo), message->pid, message->permission);
-    uint64_t hvp = gva_to_hva(cpu, IPT_ASSEMBLE_64(message->vpn_hi, message->vpn_lo) & PAGE_MASK, message->permission);
-    if(hvp == -1) {
-        // Permission Violation
-        // devteroflex_push_resp(cpu, ipt_bits, FAULT); // TODO
-        perror("TODO: Not supported yet transplant back");
-        return;
-    }
-    // TODO: Insert hvp into a table to save gva2hva translation for eviction
-    uint64_t ppn = insert_entry_get_ppn(hvp, ipt_bits);
-    pushPageToFPGA(&c, GET_PPN_FROM_PADDR(ppn), (void*) hvp);
-    devteroflex_push_page_fault(hvp, ipt_bits);
-}
-
-static void run_requests(void) {
-    uint8_t message[64];
-    MessageType type;
-    if(hasMessagePending(&c)) {
-        getMessagePending(&c, message);
-        type = ((uint32_t*) message)[0];
-        switch(type) {
-            case sPageFaultNotify:
-            handle_page_fault((PageFaultNotification *) message);
-            break;
-            case sEvictNotify:
-            handle_evict_notify((PageEvictNotification *) message);
-            break;
-            case sEvictDone:
-            handle_evict_writeback((PageEvictNotification *) message);
-            break;
-            default:
-            exit(1);
-            break;
-        }
-    }
-}
-
+// List of cpus in the FPGA
+static uint32_t running_cpus;
+#define cpu_in_fpga(cpu) (running_cpus & 1 << cpu)
+#define cpu_push_fpga(cpu) (running_cpus |= 1 << cpu)
+#define cpu_pull_fpga(cpu) (running_cpus &= ~(1 << cpu))
 
 static void run_transplant(CPUState *cpu, uint32_t thread) {
+    assert(cpu->cpu_index == thread);
+    assert(cpu_in_fpga(thread));
+    cpu_pull_fpga(cpu->cpu_index);
     transplant_getState(&c, thread, (uint64_t *) &state, DEVTEROFLEX_TOT_REGS);
     devteroflex_unpack_archstate(cpu, &state);
-    qflex_singlestep(cpu);
-    devteroflex_pack_archstate(&state, cpu);
     if(devteroflex_is_running()) {
-        transplant_pushState(&c, thread, (uint64_t *) &state, DEVTEROFLEX_TOT_REGS);
-        transplant_start(&c, thread);
-    }
-}
-
-static void run_transplants(void) {
-    uint32_t pending = 0;
-    uint32_t thread = 0;
-    uint32_t mask = 1;
-    CPUState *cpu = first_cpu;
-    transplant_pending(&c, &pending);
-    if(pending) {
-        while(cpu) {
-            if(pending & mask) { 
-                pending &= ~mask;
-                run_transplant(cpu, thread);
-            }
-            mask<<=1;
-            thread++;
-            cpu = CPU_NEXT(cpu);
+        qflex_singlestep(cpu);
+        // Singlestepping might update DevteroFlex
+        if(devteroflex_is_running()) {
+            cpu_push_fpga(cpu->cpu_index);
+            register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
+            devteroflex_pack_archstate(&state, cpu);
+            transplant_pushState(&c, thread, (uint64_t *) &state, DEVTEROFLEX_TOT_REGS);
+            transplant_start(&c, thread);
         }
     }
 }
 
-static void push_cpus(void) {
+static void transplants_run(uint32_t pending) {
+    CPUState *cpu;
+    CPU_FOREACH(cpu)
+    {
+        if(pending & (1 << cpu->cpu_index)) {
+            run_transplant(cpu, cpu->cpu_index);
+        }
+    }
+}
+
+static void transplant_push_all_cpus(void) {
     CPUState *cpu;
     CPU_FOREACH(cpu) {
+        cpu_push_fpga(cpu->cpu_index);
         registerThreadWithProcess(&c, cpu->cpu_index, QFLEX_GET_ARCH(asid)(cpu));
+        register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
         devteroflex_pack_archstate(&state, cpu);
-        transplant_pushState(&c, cpu->cpu_index, (uint64_t *) &state, DEVTEROFLEX_TOT_REGS);
+        transplant_pushState(&c, cpu->cpu_index, (uint64_t *)&state, DEVTEROFLEX_TOT_REGS);
         transplant_start(&c, cpu->cpu_index);
     }
 }
 
-static void pull_cpus(void) {
+static void transplant_pull_all_cpus(void) {
     CPUState *cpu;
     CPU_FOREACH(cpu) {
         // transplant_stop(c) // TODO: Enable mechanism to stop execution in the FPGA and request state back
-        transplant_getState(&c, cpu->cpu_index, (uint64_t *) &state, DEVTEROFLEX_TOT_REGS);
-        devteroflex_unpack_archstate(cpu, &state);
+        if(!cpu_in_fpga(cpu->cpu_index)) {
+            qemu_log("DevteroFlex: WARNING: Forcing transplants back doesn't stop execution yet.\n");
+            cpu_pull_fpga(cpu->cpu_index);
+            transplant_getState(&c, cpu->cpu_index, (uint64_t *) &state, DEVTEROFLEX_TOT_REGS);
+            devteroflex_unpack_archstate(cpu, &state);
+        }
     }
 }
 
-int devteroflex_execution_flow(void) {
-    initFPGAContext(&c);
-    push_cpus();
+/* @return true in case the message has completely evicted, 
+ *         false in case we are waiting for clearing eviction.
+ */
+static bool handle_evict_notify(MessageFPGA *message) {
+    uint64_t gva = message->vpn << 12;
+    uint64_t perm = message->EvictNotif.permission;
+    uint32_t asid = message->asid;
+    uint64_t ppn = message->EvictNotif.ppn << 12;
+    bool modified = message->EvictNotif.modified;
+
+    uint64_t ipt_bits = IPT_COMPRESS(gva, asid, perm);
+
+    /* TODO: Correct hvp->gva translation with no CPU
+     * We can hack it for synchronized pages by passing the CPU index from QEMU to the FPGA
+     */ 
+    // uint64_t hvp = page_table_get_hvp(ipt_bits, perm);
+    uint64_t hvp = gva_to_hva(qemu_get_cpu(0), gva, perm);
+    assert(hvp != -1);
+    if(modified) {
+        // Wait for EvictDone, eviction underprogress
+        evict_notify_pending_add(ipt_bits, hvp);
+        return false;
+    } else {
+        // Evict entry directly as there wont be any future evict message
+        ipt_evict(hvp, ipt_bits);
+        fpga_paddr_push(ppn);
+        return true;
+    }
+}
+
+static void handle_evict_writeback(MessageFPGA * message) {
+    uint64_t gvp = message->vpn << 12;
+    uint64_t perm = message->EvictNotif.permission;
+    uint32_t asid = message->asid;
+    uint64_t ppn = message->EvictNotif.ppn << 12;
+    assert(message->EvictNotif.modified); // No writeback notif should have not modified flag
+
+    uint64_t ipt_bits = IPT_COMPRESS(gvp, asid, perm);
+
+    // uint64_t hvp = page_table_get_hvp(ipt_bits, perm); // TODO
+    uint64_t hvp = gva_to_hva(qemu_get_cpu(0), gvp, perm);
+    assert(hvp != -1);
+ 
+    fetchPageFromFPGA(&c, ppn, (void *) hvp);
+    page_fault_pending_run(hvp);
+    evict_notfiy_pending_clear(ipt_bits);
+    ipt_evict(hvp, ipt_bits);
+    fpga_paddr_push(ppn);
+}
+
+static void handle_page_fault(MessageFPGA *message) {
+    uint64_t gvp = message->vpn << 12;
+    uint64_t perm = message->PageFaultNotif.permission;
+    uint32_t thid = message->PageFaultNotif.thid;
+    uint32_t asid = message->asid;
+
+    CPUState *cpu = qemu_get_cpu(thid);
+    uint64_t hvp = gva_to_hva(cpu, gvp, message->PageFaultNotif.permission);
+    uint64_t ipt_bits = IPT_COMPRESS(gvp, asid, perm);
+    qemu_log("DevteroFlex:PAGE_FAULT:thid[%i]:asid[%"PRIx32"]:addr[0x%"PRIx64"]\n", thid, asid, gvp);
+    if(hvp == -1) {
+        qemu_log("   ---- page fault translation miss, run instruction.\n");
+        run_transplant(cpu, thid);
+        return;
+    }
+
+    if(page_fault_pending_eviction_has_hvp(hvp)) {
+        // FPGA is evicting that hvp, wait till completed before handling the page
+        qemu_log("DevteroFlex: Page Fault address matched currently evicting phyisical page.\n");
+        page_fault_pending_add(ipt_bits, hvp, thid);
+    } else {
+        page_fault_return(ipt_bits, hvp, thid);
+        bool has_pending = page_fault_pending_run(hvp);
+        assert(!has_pending);
+    }
+}
+
+static bool message_has_pending(MessageFPGA *msg) {
+    if(hasMessagePending(&c)) {
+        getMessagePending(&c, (uint8_t *) msg);
+        return true;
+    }
+    return false;
+}
+
+static bool transplants_has_pending(uint32_t *pending) {
+    transplant_pending(&c, pending);
+    return (pending != 0);
+}
+
+static void message_run(MessageFPGA message) {
+    switch (message.type)
+    {
+    case sPageFault:
+        handle_page_fault(&message);
+        break;
+    case sEvictNotify:
+        handle_evict_notify(&message);
+        break;
+    case sEvictDone:
+        handle_evict_writeback(&message);
+        break;
+    default:
+        perror("Message type received by FPGA doesn't match any of the existing types.\n");
+        exit(EXIT_FAILURE);
+        break;
+    }
+}
+
+void page_fault_return(uint64_t ipt_bits, uint64_t hvp, uint32_t thid) {
+    uint64_t gvpa = IPT_GET_VA(ipt_bits);
+    uint64_t asid = IPT_GET_ASID(ipt_bits);
+    uint32_t perm = IPT_GET_PERM(ipt_bits);
+    uint64_t ppa = -1; // physical page address
+    bool pushPage = insert_entry_get_ppn(hvp, ipt_bits, &ppa);
+    if(pushPage) {
+        // No synonym
+        pushPageToFPGA(&c, ppa, (void*) hvp);
+    }
+
+    MessageFPGA missReply;
+    makeMissReply(perm, thid, asid, gvpa, ppa, &missReply);
+    sendMessageToFPGA(&c, &missReply, sizeof(MessageFPGA));
+}
+
+void page_eviction_request(uint64_t ipt_bits) {
+    uint64_t gvp = IPT_GET_VA(ipt_bits);
+    uint64_t asid = IPT_GET_ASID(ipt_bits);
+
+    MessageFPGA evictRequest;
+    makeEvictRequest(asid, gvp, &evictRequest);
+    sendMessageToFPGA(&c, &evictRequest, sizeof(MessageFPGA));
+}
+
+static MessageFPGA message_buffer[256] = {0};
+static uint64_t message_buffer_curr_entry = 0;
+
+void page_eviction_wait_complete(uint64_t *ipt_list, int count) {
+    MessageFPGA msg;
+    bool matched = false;
+    int left = count;
+    while(left > 0) {
+        if(message_has_pending(&msg)) {
+            uint32_t asid = msg.asid;
+            uint64_t gvp = msg.vpn << 12;
+            matched = false;
+            for (int entry = 0; entry < count; entry++) {
+                uint64_t ipt_bits = ipt_list[entry];
+                if(IPT_GET_VA(ipt_bits) == gvp && IPT_GET_ASID(ipt_bits) == asid) {
+                    matched = true;
+                    // This message is one of the messages we were waiting for
+                    if(msg.type == sEvictNotify) {
+                        bool noWriteback = handle_evict_notify(&msg);
+                        if (noWriteback) { 
+                            left--;
+                        }
+                    } else if (msg.type == sEvictDone) {
+                        handle_evict_writeback(&msg);
+                        left--;
+                    } else {
+                        perror("DevteroFlex: Message should have been an evict response while synchronizing page\n.");
+                        exit(EXIT_FAILURE);
+                    }
+
+                    break; // Break search for matching entry
+                }
+            }
+            if(!matched) {
+                // Buffer messages that do not concern page synchronization.
+                // We do this to serialise requests and remove potential dependencies,
+                // we delay all messages till the synchronization is completed
+                message_buffer[message_buffer_curr_entry] = msg;
+                message_buffer_curr_entry++;
+                if(message_buffer_curr_entry>256) {
+                    perror("DevteroFlex: Ran out of message entries.\n");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+    }
+}
+
+// Functions that control QEMU execution flow
+
+static int devteroflex_execution_flow(void) {
+    MessageFPGA msg;
+    uint32_t pending;
+    CPUState *cpu;
+    CPU_FOREACH(cpu) { }
+    transplant_push_all_cpus();
     while(1) {
-       // Check for pending transplants
-       run_transplants();
-       // Check for pending requests
-       run_requests();
+       // Check and run all pending transplants
+       if(transplants_has_pending(&pending)) {
+           transplants_run(pending);
+       }
+       // Run all pending messages from a synchronization
+       if(message_buffer_curr_entry > 0) {
+           for(int message_idx = 0; message_idx < message_buffer_curr_entry; message_idx++) {
+               message_run(message_buffer[message_idx]);
+           }
+           message_buffer_curr_entry = 0;
+       }
+       // Check and run all pending messages
+       while(message_has_pending(&msg)) {
+           message_run(msg);
+       }
+
+       // If DevteroFlex stopped executing, pull all cpu's back
        if(!devteroflex_is_running()) {
-           pull_cpus();
+           transplant_pull_all_cpus();
            break;
        }
     }
 
-    releaseFPGAContext(&c);
     return 0;
 }
 
-int devteroflex_singlestepping_flow(void) {
+static void devteroflex_prepare_singlestepping(void) {
     CPUState *cpu;
     qflex_update_exit_main_loop(false);
-    qemu_log("DEVTEROFLEX: START\n");
     qflex_singlestep_start();
     qflex_update_skip_interrupts(true);
+    qflex_mem_trace_start(-1, -1);
     CPU_FOREACH(cpu) {
         cpu_single_step(cpu, SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER);
         qatomic_mb_set(&cpu->exit_request, 0);
     }
+}
+
+int devteroflex_singlestepping_flow(void) {
+    qemu_log("DEVTEROFLEX: FPGA START\n");
+    devteroflex_prepare_singlestepping();
     devteroflex_execution_flow();
+    qemu_log("DEVTEROFLEX: FPGA EXIT\n");
+    devteroflex_stop_full();
+    return 0;
+}
 
-    //while(devteroflex_is_running()) {
-    //    CPU_FOREACH(cpu) {
-    //        qflex_singlestep(cpu);
-    //    }
-    //}
-
+void devteroflex_stop_full(void) {
+    CPUState *cpu;
     qflex_singlestep_stop();
     qflex_update_skip_interrupts(false);
     CPU_FOREACH(cpu) {
         cpu_single_step(cpu, 0);
     }
-    qemu_log("DEVTEROFLEX: EXIT\n");
-    return 0;
+    qemu_loglevel &= ~CPU_LOG_TB_IN_ASM;
+    qemu_loglevel &= ~CPU_LOG_INT;
+    qemu_log("DEVTEROFLEX: Stopped fully\n");
+
+    // TODO: When to close FPGA and stop generating helper memory?
+    //releaseFPGAContext(&c);
+    //qflex_mem_trace_stop();
+}
+
+void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages) {
+    devteroflexConfig.enabled = enabled;
+    devteroflexConfig.running = run;
+    if(fpga_physical_pages != -1) {
+        initFPGAContext(&c);
+        if (fpga_paddr_init_manager(fpga_physical_pages, c.base_address.page_base)) {
+            perror("DevteroFlex: Couldn't init the stack for keepign track of free phyiscal pages in the fpga.\n");
+            exit(EXIT_FAILURE);
+        }
+        // TODO choose smarter hashing
+        // Hashing function is straight forward modulo
+        int modulo_hash = 4096;
+        ipt_init(modulo_hash);
+    }
 }

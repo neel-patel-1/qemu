@@ -5273,27 +5273,20 @@ ERST
 #ifdef CONFIG_DEVTEROFLEX
 
 DEF("devteroflex", HAS_ARG, QEMU_OPTION_devteroflex, \
-    "-devteroflex [enable=on|off][,mode=full|magic][,sim=on|off]\n",
+    "-devteroflex [run=on|off]\n",
     QEMU_ARCH_ARM)
 
 SRST
-``-devteroflex [enable=on|off][,mode=full|magic][,sim=on|off]``
+``-devteroflex  dram-pages=N,[run=on|off]``
     Enable DevteroFlex, FPGA Accelerated instrumentation platform.
 
-    ``enable=on``
-    if DevteroFlex is enabled, will start DevteroFlex from the beginning.
-    Currently this option does not work when TBD.
+    ``dram-pages=N``
+    N is the number of pages
 
-    ``-mode=mode``
-    will enable DevteroFlex to take control when
-
-    ``magic`` instruction is hit or ``full`` from the start (default).
-    Currently this option does not work if DevteroFlex is disabled.
-    
-    ``sim=on``
-    will communicate with Chisel3 simulator instead of real FPGA.
-    Currently this option does not work if DevteroFlex is disabled and
-    does not work if sim is disabled.
+    ``run=on``
+    if DevteroFlex is run, will start DevteroFlex from the beginning.
+    Currently this option would run slowly give that most of
+    system calls or kernel instructions trigger transplants.
 
 ERST
 

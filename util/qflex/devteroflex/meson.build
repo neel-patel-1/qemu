@@ -1,10 +1,12 @@
 devteroflex_ss.add([files(
-   'devteroflex.pb-c.c',
-   'file-ops.c',
-   'page-demander.c',
-   'verification.c',
-   'custom-instrumentation.c',
-   'devteroflex.c',
+  'devteroflex.pb-c.c',
+  'file-ops.c',
+  'demand-paging.c',
+  'inverted-page-table.c',
+  'physical-addr-manager.c',
+  'verification.c',
+  'custom-instrumentation.c',
+  'devteroflex.c',
  ), devteroflex])
 
 if 'AWS_FPGA' in config_host

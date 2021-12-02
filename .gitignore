@@ -14,3 +14,4 @@ GTAGS
 *.ast_raw
 *.depend_raw
 .vscode/settings.json
+.vscode/clang-format
