@@ -142,8 +142,9 @@ static void handle_page_fault(MessageFPGA *message) {
     CPUState *cpu = qemu_get_cpu(thid);
     uint64_t hvp = gva_to_hva(cpu, gvp, message->PageFaultNotif.permission);
     uint64_t ipt_bits = IPT_COMPRESS(gvp, asid, perm);
+    qemu_log("DevteroFlex:PAGE_FAULT:thid[%i]:asid[%"PRIx32"]:addr[0x%"PRIx64"]\n", thid, asid, gvp);
     if(hvp == -1) {
-        qemu_log("DevteroFlex:thid[%i]:asid[%"PRIx32"]:addr[0x%"PRIx64"]:page fault translation miss.\n", thid, asid, gvp);
+        qemu_log("   ---- page fault translation miss, run instruction.\n");
         run_transplant(cpu, thid);
         return;
     }
@@ -192,18 +193,18 @@ static void message_run(MessageFPGA message) {
 }
 
 void page_fault_return(uint64_t ipt_bits, uint64_t hvp, uint32_t thid) {
-    uint64_t gvp = IPT_GET_VA(ipt_bits);
+    uint64_t gvpa = IPT_GET_VA(ipt_bits);
     uint64_t asid = IPT_GET_ASID(ipt_bits);
     uint32_t perm = IPT_GET_PERM(ipt_bits);
-    uint64_t ppn = -1;
-    bool pushPage = insert_entry_get_ppn(hvp, ipt_bits, &ppn);
+    uint64_t ppa = -1; // physical page address
+    bool pushPage = insert_entry_get_ppn(hvp, ipt_bits, &ppa);
     if(pushPage) {
         // No synonym
-        pushPageToFPGA(&c, ppn, (void*) hvp);
+        pushPageToFPGA(&c, ppa, (void*) hvp);
     }
 
     MessageFPGA missReply;
-    makeMissReply(perm, thid, asid, gvp, ppn, &missReply);
+    makeMissReply(perm, thid, asid, gvpa, ppa, &missReply);
     sendMessageToFPGA(&c, &missReply, sizeof(MessageFPGA));
 }
 

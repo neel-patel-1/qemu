@@ -202,6 +202,7 @@ int ipt_check_synonyms(uint64_t hvp, uint64_t **ipt_chain) {
 uint64_t page_table_get_hvp(uint64_t ipt_bits, int perm) {
     uint64_t asid_reg = ttbr_list[IPT_GET_ASID(ipt_bits)];
     assert(asid_reg >> 48 == IPT_GET_ASID(ipt_bits));
+    // TODO: This function doesn't work, QEMU uses more than asid register to translate
     uint64_t gva = gva_to_hva_with_asid(asid_reg, IPT_GET_VA(ipt_bits), perm);
     if(gva != -1) {
         perror("DevteroFlex: Failed retranslating previously translated host virtual address.\n");
