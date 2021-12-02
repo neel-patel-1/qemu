@@ -95,7 +95,7 @@ void page_eviction_wait_complete(uint64_t *ipt_list, int count);
  * These functions keep track of which physical addresses 
  * are free.
  */
-int fpga_paddr_init_manager(size_t tot_physical_pages);
+int fpga_paddr_init_manager(size_t tot_physical_pages, uint64_t data_base_addr);
 bool fpga_paddr_get(uint64_t *paddr);
 void fpga_paddr_push(uint64_t paddr);
 void fpga_paddr_free_stack(void);

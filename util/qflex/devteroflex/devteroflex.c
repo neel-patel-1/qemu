@@ -322,8 +322,8 @@ void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages) {
     devteroflexConfig.enabled = enabled;
     devteroflexConfig.running = run;
     if(fpga_physical_pages != -1) {
-        if (fpga_paddr_init_manager(fpga_physical_pages)) {
-            perror("Couldn't init the stack for keepign track of free phyiscal pages in the fpga.\n");
+        if (fpga_paddr_init_manager(fpga_physical_pages, c.base_address.page_base)) {
+            perror("DevteroFlex: Couldn't init the stack for keepign track of free phyiscal pages in the fpga.\n");
             exit(EXIT_FAILURE);
         }
         // TODO choose smarter hashing

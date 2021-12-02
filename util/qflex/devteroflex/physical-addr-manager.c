@@ -8,7 +8,7 @@
 static cbuf_handle_t cbuf;
 static uint64_t* paddr_buff = NULL;
 
-int fpga_paddr_init_manager(size_t tot_physical_pages) {
+int fpga_paddr_init_manager(size_t tot_physical_pages, uint64_t data_base_addr) {
     assert(!paddr_buff);
     paddr_buff = calloc(tot_physical_pages, PAGE_SIZE);
     if(!paddr_buff) { 
@@ -16,7 +16,7 @@ int fpga_paddr_init_manager(size_t tot_physical_pages) {
     }
     cbuf = circular_buf_init(paddr_buff, tot_physical_pages);
     for(int page = 0; page < tot_physical_pages; page++) {
-        fpga_paddr_push(page * PAGE_SIZE);
+        fpga_paddr_push(page * PAGE_SIZE + data_base_addr);
     }
     return 0;
 }
