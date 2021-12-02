@@ -123,6 +123,8 @@ static bool IPTHvp_insert_Gvp(uint64_t hvp, uint64_t ipt_bits) {
         entry = *entryPtr;
         entry->hvp = hvp;
         entry->cnt = 0;
+        entry->head = NULL;
+        entry->next = NULL;
         has_synonyms = false;
     }
 
