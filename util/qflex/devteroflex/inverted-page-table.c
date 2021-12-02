@@ -143,9 +143,9 @@ static int IPTHvp_get_Gvp_synonyms(uint64_t hvp, uint64_t **ipt_chain) {
         // Has synonyms, return synonym list
         count = entry->cnt;
         *ipt_chain = calloc(entry->cnt, sizeof(uint64_t));
+        IPTGvpList_get_chain(entry, *ipt_chain);
     }
 
-    IPTGvpList_get_chain(entry, *ipt_chain);
     return count;
 }
 
