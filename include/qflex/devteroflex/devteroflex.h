@@ -45,6 +45,7 @@ static inline void devteroflex_stop(void) {
 void devteroflex_stop_full(void);
 
 static inline bool devteroflex_is_running(void) { return devteroflexConfig.enabled && devteroflexConfig.running; }
+static inline bool devteroflex_is_enabled(void) { return devteroflexConfig.enabled; }
 
 /* The following functions are architecture specific, so they are
  * in the architecture target directory.
