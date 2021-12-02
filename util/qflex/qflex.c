@@ -34,10 +34,11 @@ QflexState_t qflexState = {
 
 int qflex_singlestep(CPUState *cpu) {
     int ret;
+    qflex_update_exit_main_loop(false);
     ret = qflex_cpu_step(cpu);
-
     if(ret) {
-        qemu_log("QFLEX: Singlestep went wrong\n");
+        // TODO How to handle this case?
+        // qemu_log("QFLEX: Singlestep went wrong\n"); 
     }
 
     return ret;

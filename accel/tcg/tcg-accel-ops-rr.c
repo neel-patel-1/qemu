@@ -320,6 +320,10 @@ int qflex_cpu_step(void *arg)
     qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
                       (cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
 
+    // TODO: What to do in case during a single step we have a specific return?
+    static int CPU_UNPLUGGED = 0x123564;
+    static int CPU_STOPPED = 0x143242;
+    static int CPU_CANT_RUN = 0x14321423;
     if (cpu_can_run(cpu)) {
 
         qemu_mutex_unlock_iothread();
@@ -344,15 +348,12 @@ int qflex_cpu_step(void *arg)
         }
     } else if (cpu->stop) {
         if (cpu->unplug) {
-            static int CPU_UNPLUGGED = 0x123564;
             r = CPU_UNPLUGGED;
             goto break_cpu;
         }
-        static int CPU_STOPPED = 0x143242;
         r = CPU_STOPPED;
         goto break_cpu;
     } else {
-        static int CPU_CANT_RUN= 0x14321423;
         r = CPU_CANT_RUN;
         goto break_cpu;
     }

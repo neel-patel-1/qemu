@@ -138,8 +138,10 @@ void qflex_mem_trace_gen_helper_stop(void) {
 void qflex_mem_trace_start(size_t nb_insn, int trace_type) {
     qflexTraceState.total_trace_insts = nb_insn;
     qflexTraceState.gen_helper = true;
-    qflexTraceState.gen_trace = true;
-    qflexTraceState.gen_inst_trace_type = trace_type;
+    if(trace_type >= 0) {
+        qflexTraceState.gen_trace = true;
+        qflexTraceState.gen_inst_trace_type = trace_type;
+    }
     qflex_tb_flush();
 }
 
