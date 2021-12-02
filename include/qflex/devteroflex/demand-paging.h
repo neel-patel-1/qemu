@@ -51,6 +51,9 @@ int ipt_evict(uint64_t hvp, uint64_t ipt_bits);
 /* Check whenever a physical address has synonyms
  */
 int ipt_check_synonyms(uint64_t hvp, uint64_t **ipt_chain);
+/* Init inverted page table
+ */
+void ipt_init(size_t nb_buckets);
 
 /* Store architectural register of ASID and Base Address of physical page for
  * retranslating address later.

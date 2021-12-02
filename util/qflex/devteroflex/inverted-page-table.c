@@ -25,14 +25,14 @@ typedef IPTHvp *    IPTHvpPtr;
 
 typedef struct InvertedPageTable {
     IPTHvpPtr *entries;
+    size_t nbEntries;
 } InvertedPageTable;
 
-#define NB_ENTRIES (1 << 10)
-static inline size_t IPT_hash(uint64_t hvp) {
-    return (hvp % NB_ENTRIES);
-}
-
 static InvertedPageTable ipt;
+
+static inline size_t IPT_hash(uint64_t hvp) {
+    return ((hvp >> 12) % ipt.nbEntries);
+}
 
 static void IPTGvpList_free(IPTGvpList **base) {
     IPTGvpList *curr = *base;
@@ -176,6 +176,14 @@ int ipt_add_entry(uint64_t hvp, uint64_t ipt_bits) {
         return SYNONYM;
     } else {
         return PAGE;
+    }
+}
+
+void ipt_init(size_t nb_buckets) {
+    ipt.entries = calloc(nb_buckets, sizeof(IPTHvpPtr));
+    ipt.nbEntries = nb_buckets;
+    for(int entry = 0; entry < nb_buckets; entry++) {
+        ipt.entries[entry] = NULL;
     }
 }
 

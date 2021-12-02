@@ -326,5 +326,9 @@ void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages) {
             perror("Couldn't init the stack for keepign track of free phyiscal pages in the fpga.\n");
             exit(EXIT_FAILURE);
         }
+        // TODO choose smarter hashing
+        // Hashing function is straight forward modulo
+        int modulo_hash = 4096;
+        ipt_init(modulo_hash);
     }
 }
