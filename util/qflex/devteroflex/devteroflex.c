@@ -292,11 +292,9 @@ static int devteroflex_execution_flow(void) {
     return 0;
 }
 
-int devteroflex_singlestepping_flow(void) {
+static void devteroflex_prepare_singlestepping(void) {
     CPUState *cpu;
-    // Preapre DevteroFlex execution flow
     qflex_update_exit_main_loop(false);
-    qemu_log("DEVTEROFLEX: START\n");
     qflex_singlestep_start();
     qflex_update_skip_interrupts(true);
     qflex_mem_trace_start(-1, -1);
@@ -304,17 +302,14 @@ int devteroflex_singlestepping_flow(void) {
         cpu_single_step(cpu, SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER);
         qatomic_mb_set(&cpu->exit_request, 0);
     }
+}
 
+int devteroflex_singlestepping_flow(void) {
+    qemu_log("DEVTEROFLEX: FPGA START\n");
+    devteroflex_prepare_singlestepping();
     devteroflex_execution_flow();
-
-    // Prepare to rexecute normally
-    qflex_singlestep_stop();
-    qflex_update_skip_interrupts(false);
-    qflex_mem_trace_stop();
-    CPU_FOREACH(cpu) {
-        cpu_single_step(cpu, 0);
-    }
-    qemu_log("DEVTEROFLEX: EXIT\n");
+    qemu_log("DEVTEROFLEX: FPGA EXIT\n");
+    devteroflex_stop_full();
     return 0;
 }
 
