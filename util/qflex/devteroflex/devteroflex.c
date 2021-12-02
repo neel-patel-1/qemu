@@ -93,9 +93,14 @@ static bool handle_evict_notify(MessageFPGA *message) {
     uint64_t ppn = message->EvictNotif.ppn << 12;
     bool modified = message->EvictNotif.modified;
 
-    uint64_t ipt_bits = IPT_COMPRESS(gvp, asid, perm);
+    uint64_t ipt_bits = IPT_COMPRESS(gva, asid, perm);
 
-    uint64_t hvp = page_table_get_hvp(ipt_bits, perm);
+    /* TODO: Correct hvp->gva translation with no CPU
+     * We can hack it for synchronized pages by passing the CPU index from QEMU to the FPGA
+     */ 
+    // uint64_t hvp = page_table_get_hvp(ipt_bits, perm);
+    uint64_t hvp = gva_to_hva(qemu_get_cpu(0), gva, perm);
+    assert(hvp != -1);
     if(modified) {
         // Wait for EvictDone, eviction underprogress
         evict_notify_pending_add(ipt_bits, hvp);
@@ -117,7 +122,9 @@ static void handle_evict_writeback(MessageFPGA * message) {
 
     uint64_t ipt_bits = IPT_COMPRESS(gvp, asid, perm);
 
-    uint64_t hvp = page_table_get_hvp(ipt_bits, perm);
+    // uint64_t hvp = page_table_get_hvp(ipt_bits, perm); // TODO
+    uint64_t hvp = gva_to_hva(qemu_get_cpu(0), gvp, perm);
+    assert(hvp != -1);
  
     fetchPageFromFPGA(&c, ppn, (void *) hvp);
     page_fault_pending_run(hvp);
