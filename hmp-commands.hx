@@ -1849,6 +1849,19 @@ SRST
 ERST
 
     {
+        .name       = "devteroflex-stop-full",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Stop devteroflex running and synchronizing pages",
+        .cmd        = hmp_devteroflex_stop_full,
+    },
+
+SRST
+``devteroflex-stop-full``
+  Stop devteroflex running and synchronizing pages.
+ERST
+
+    {
         .name       = "devteroflex-gen-example",
         .args_type  = "op:s,nb_insn:i",
         .params     = "op nb_insn",

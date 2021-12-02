@@ -42,6 +42,8 @@ static inline void devteroflex_stop(void) {
     qflex_tb_flush();
 }
 
+void devteroflex_stop_full(void);
+
 static inline bool devteroflex_is_running(void) { return devteroflexConfig.enabled && devteroflexConfig.running; }
 
 /* The following functions are architecture specific, so they are

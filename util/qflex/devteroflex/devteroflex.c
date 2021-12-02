@@ -318,6 +318,22 @@ int devteroflex_singlestepping_flow(void) {
     return 0;
 }
 
+void devteroflex_stop_full(void) {
+    CPUState *cpu;
+    qflex_singlestep_stop();
+    qflex_update_skip_interrupts(false);
+    CPU_FOREACH(cpu) {
+        cpu_single_step(cpu, 0);
+    }
+    qemu_loglevel &= ~CPU_LOG_TB_IN_ASM;
+    qemu_loglevel &= ~CPU_LOG_INT;
+    qemu_log("DEVTEROFLEX: Stopped fully\n");
+
+    // TODO: When to close FPGA and stop generating helper memory?
+    //releaseFPGAContext(&c);
+    //qflex_mem_trace_stop();
+}
+
 void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages) {
     devteroflexConfig.enabled = enabled;
     devteroflexConfig.running = run;

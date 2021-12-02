@@ -102,4 +102,8 @@ void hmp_devteroflex_gen_example(Monitor *mon, const QDict *qdict) {
         monitor_printf(mon, "Devteroflex: Unexpected 'op' parameter [start | stop]\n");
     }
 }
+
+void hmp_devteroflex_stop_full(Monitor *mon, const QDict *qdict) {
+    devteroflex_stop_full();
+}
 #endif
