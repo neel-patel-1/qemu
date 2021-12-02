@@ -36,9 +36,11 @@ static inline size_t IPT_hash(uint64_t hvp) {
 
 static void IPTGvpList_free(IPTGvpList **base) {
     IPTGvpList *curr = *base;
+    IPTGvpList *last;
     while(curr) {
-        free(curr);
+        last = curr;
         curr = curr->next;
+        free(last);
     };
 }
 
