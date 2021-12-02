@@ -87,7 +87,7 @@ static void transplant_pull_all_cpus(void) {
  *         false in case we are waiting for clearing eviction.
  */
 static bool handle_evict_notify(MessageFPGA *message) {
-    uint64_t gvp = IPT_ASSEMBLE_64(message->vpn_hi, message->vpn_lo) & PAGE_MASK;
+    uint64_t gva = message->vpn << 12;
     uint64_t perm = message->EvictNotif.permission;
     uint32_t asid = message->asid;
     uint64_t ppn = message->EvictNotif.ppn;
@@ -109,7 +109,7 @@ static bool handle_evict_notify(MessageFPGA *message) {
 }
 
 static void handle_evict_writeback(MessageFPGA * message) {
-    uint64_t gvp = IPT_ASSEMBLE_64(message->vpn_hi, message->vpn_lo) & PAGE_MASK;
+    uint64_t gvp = message->vpn << 12;
     uint64_t perm = message->EvictNotif.permission;
     uint32_t asid = message->asid;
     uint64_t ppn = message->EvictNotif.ppn;
@@ -127,7 +127,7 @@ static void handle_evict_writeback(MessageFPGA * message) {
 }
 
 static void handle_page_fault(MessageFPGA *message) {
-    uint64_t gvp = IPT_ASSEMBLE_64(message->vpn_hi, message->vpn_lo) << 12;
+    uint64_t gvp = message->vpn << 12;
     uint64_t perm = message->PageFaultNotif.permission;
     uint32_t thid = message->PageFaultNotif.thid;
     uint32_t asid = message->asid;
@@ -219,7 +219,7 @@ void page_eviction_wait_complete(uint64_t *ipt_list, int count) {
     while(left > 0) {
         if(message_has_pending(&msg)) {
             uint32_t asid = msg.asid;
-            uint64_t gvp = IPT_ASSEMBLE_64(msg.vpn_hi, msg.vpn_lo) & PAGE_MASK;
+            uint64_t gvp = msg.vpn << 12;
             matched = false;
             for (int entry = 0; entry < count; entry++) {
                 uint64_t ipt_bits = ipt_list[entry];

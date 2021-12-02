@@ -18,7 +18,7 @@
 #define IPT_MASK_PAGE_NB    (0xfffffffffULL << 12)
 #define IPT_MASK_isKernel   (1ULL << 63)
 #define IPT_MASK_P          (0b11ULL)
-#define PAGE_MASK           (0xffffULL)
+#define PAGE_MASK           (0xfffULL)
 
 #define IPT_GET_ASID(bits)           (bits >> 48)
 #define IPT_GET_VA_BITS(bits)       (bits & IPT_MASK_PAGE_NB)

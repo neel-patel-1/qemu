@@ -31,17 +31,22 @@ typedef struct MessageFPGA
     {
         struct
         { // Common types
-            MessageType type;
-            uint32_t vpn_lo;
-            uint32_t vpn_hi;
+            uint32_t type;
             uint32_t asid;
+            union {
+                uint64_t vpn;
+                struct {
+                    uint32_t vpn_lo;
+                    uint32_t vpn_hi;
+                };
+            };
         };
         struct
         { // type == 2
             MessageType type;
+            uint32_t asid;
             uint32_t vpn_lo;
             uint32_t vpn_hi;
-            uint32_t asid;
             uint32_t permission;
             uint32_t thid; // -1 means no wake up.
             uint32_t ppn;
@@ -49,26 +54,28 @@ typedef struct MessageFPGA
         struct
         { // type == 3
             MessageType type;
+            uint32_t asid;
             uint32_t vpn_lo;
             uint32_t vpn_hi;
-            uint32_t asid;
             uint32_t old_ppn;
         } EvictReply;
         struct
         { // type == 4
             MessageType type;
+            uint32_t asid;
             uint32_t vpn_lo;
             uint32_t vpn_hi;
-            uint32_t asid;
+
             uint32_t permission;
             uint32_t thid;
         } PageFaultNotif;
         struct
         { // type == 5
             MessageType type;
+            uint32_t asid;
             uint32_t vpn_lo;
             uint32_t vpn_hi;
-            uint32_t asid;
+
             uint32_t ppn;
             uint32_t permission;
             uint32_t modified;
@@ -76,9 +83,10 @@ typedef struct MessageFPGA
         struct
         { // type == 6
             MessageType type;
+            uint32_t asid;
             uint32_t vpn_lo;
             uint32_t vpn_hi;
-            uint32_t asid;
+
             uint32_t ppn;
             uint32_t permission;
             uint32_t modified;
@@ -86,9 +94,9 @@ typedef struct MessageFPGA
         struct
         { // type == 7
             MessageType type;
+            uint32_t asid;
             uint32_t vpn_lo;
             uint32_t vpn_hi;
-            uint32_t asid;
         } PageEvictRequest;
         uint32_t words[16];
         uint8_t bytes[64];
@@ -159,12 +167,11 @@ typedef enum MemoryAccessType {
 #define ARCH_PSTATE_VF_MASK     (0)    // 64bit 0
 #define ARMFLEX_TOT_REGS        (35)
 
-static inline void makeEvictRequest(int asid, uint64_t va, MessageFPGA *evict_request)
+static inline void makeEvictRequest(int asid, uint64_t vp, MessageFPGA *evict_request)
 {
     evict_request->type = sPageEvict;
     evict_request->asid = asid;
-    evict_request->vpn_hi = VPN_GET_HI(va);
-    evict_request->vpn_lo = VPN_GET_LO(va);
+    evict_request->vpn = vp >> 12;
 }
 
 static inline void makeEvictReply(MessageFPGA *notif, MessageFPGA *evict_reply)
@@ -182,8 +189,7 @@ static inline void makeMissReply(int perm, int thid, int asid, uint64_t va, uint
 {
     miss_reply->type = sMissReply;
     miss_reply->asid = asid;
-    miss_reply->vpn_hi = VPN_GET_HI(va);
-    miss_reply->vpn_lo = VPN_GET_LO(va);
+    miss_reply->vpn = va >> 12;
 
     miss_reply->MissReply.thid = thid;
     miss_reply->MissReply.permission = perm;
