@@ -123,7 +123,6 @@ bool devteroflex_get_paddr(CPUState *cpu, uint64_t addr, uint64_t access_type,  
  */
 bool devteroflex_get_ppage(CPUState *cpu, uint64_t addr, uint64_t access_type,  uint64_t *host_phys_page, uint64_t *page_size);
 
-int devteroflex_execution_flow(void);
 int devteroflex_singlestepping_flow(void);
 
 #endif /* DEVTEROFLEX_H */

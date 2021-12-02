@@ -257,10 +257,11 @@ void page_eviction_wait_complete(uint64_t *ipt_list, int count) {
     }
 }
 
-int devteroflex_execution_flow(void) {
+// Functions that control QEMU execution flow
+
+static int devteroflex_execution_flow(void) {
     MessageFPGA msg;
     uint32_t pending;
-    initFPGAContext(&c);
     CPUState *cpu;
     CPU_FOREACH(cpu) { }
     transplant_push_all_cpus();
@@ -288,7 +289,6 @@ int devteroflex_execution_flow(void) {
        }
     }
 
-    releaseFPGAContext(&c);
     return 0;
 }
 
@@ -338,6 +338,7 @@ void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages) {
     devteroflexConfig.enabled = enabled;
     devteroflexConfig.running = run;
     if(fpga_physical_pages != -1) {
+        initFPGAContext(&c);
         if (fpga_paddr_init_manager(fpga_physical_pages, c.base_address.page_base)) {
             perror("DevteroFlex: Couldn't init the stack for keepign track of free phyiscal pages in the fpga.\n");
             exit(EXIT_FAILURE);
