@@ -50,6 +50,7 @@ static void run_transplant(CPUState *cpu, uint32_t thread) {
 
 static void transplants_run(uint32_t pending) {
     CPUState *cpu;
+    transplant_freePending(&c, pending);
     CPU_FOREACH(cpu)
     {
         if(pending & (1 << cpu->cpu_index)) {
@@ -276,6 +277,8 @@ static int devteroflex_execution_flow(void) {
     while(1) {
        // Check and run all pending transplants
        if(transplants_has_pending(&pending)) {
+           qemu_log("DevteroFlex: Transplants: %x", pending);
+
            transplants_run(pending);
        }
        // Run all pending messages from a synchronization
@@ -287,6 +290,7 @@ static int devteroflex_execution_flow(void) {
        }
        // Check and run all pending messages
        while(message_has_pending(&msg)) {
+           qemu_log("DevteroFlex: Memory Message");
            message_run(msg);
        }
 
