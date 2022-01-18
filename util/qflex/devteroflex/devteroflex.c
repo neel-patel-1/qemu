@@ -96,8 +96,8 @@ static bool handle_evict_notify(MessageFPGA *message) {
     uint64_t gva = message->vpn << 12;
     uint64_t perm = message->EvictNotif.permission;
     uint32_t asid = message->asid;
-    uint64_t ppn = message->EvictNotif.ppn << 12;
-    bool modified = message->EvictNotif.modified;
+    // uint64_t ppn = message->EvictNotif.ppn << 12;
+    // bool modified = message->EvictNotif.modified;
 
     uint64_t ipt_bits = IPT_COMPRESS(gva, asid, perm);
 
@@ -112,17 +112,18 @@ static bool handle_evict_notify(MessageFPGA *message) {
 
     uint64_t hvp = tpt_lookup(ipt_bits);
 
-    if(modified) {
-        // Wait for EvictDone, eviction underprogress
-        evict_notify_pending_add(ipt_bits, hvp);
-        return false;
-    } else {
-        // Evict entry directly as there wont be any future evict message
-        ipt_evict(hvp, ipt_bits);
-        tpt_remove_entry(ipt_bits);
-        fpga_paddr_push(ppn);
-        return true;
-    }
+    // if(modified) {
+    //     // Wait for EvictDone, eviction underprogress
+    //     return false;
+    // } else {
+    //     // Evict entry directly as there wont be any future evict message
+    //     ipt_evict(hvp, ipt_bits);
+    //     tpt_remove_entry(ipt_bits);
+    //     fpga_paddr_push(ppn);
+    //     return true;
+    // }
+    evict_notify_pending_add(ipt_bits, hvp);
+    return false;
 }
 
 static void handle_evict_writeback(MessageFPGA * message) {
@@ -130,7 +131,7 @@ static void handle_evict_writeback(MessageFPGA * message) {
     uint64_t perm = message->EvictNotif.permission;
     uint32_t asid = message->asid;
     uint64_t ppn = message->EvictNotif.ppn << 12;
-    assert(message->EvictNotif.modified); // No writeback notif should have not modified flag
+    // if(!message->EvictNotif.modified) return;
 
     uint64_t ipt_bits = IPT_COMPRESS(gvp, asid, perm);
 
