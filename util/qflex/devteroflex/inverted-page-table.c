@@ -9,158 +9,9 @@
 #include "qflex/devteroflex/simulation/fpga_interface.h"
 #endif
 
-typedef struct IPTGvpList {
-    uint64_t ipt_bits;    // PID, Guest VA, Permission
-    struct IPTGvpList *next; // Extra synonyms list
-} IPTGvpList;
+#include <glib.h>
 
-typedef struct IPTHvp {
-    int           cnt;   // Count of elements in IPTGvpList
-    uint64_t      hvp;   // Host Virtual Address (HVP)
-    IPTGvpList    *head; // GVP mapping to this HVP present in the FPGA
-    struct IPTHvp *next; // In case multiple Host VA hash to same spot
-} IPTHvp;
-
-typedef IPTHvp *    IPTHvpPtr;
-
-typedef struct InvertedPageTable {
-    IPTHvpPtr *entries;
-    size_t nbEntries;
-} InvertedPageTable;
-
-static InvertedPageTable ipt;
-
-static inline size_t IPT_hash(uint64_t hvp) {
-    return ((hvp >> 12) % ipt.nbEntries);
-}
-
-static void IPTGvpList_free(IPTGvpList **base) {
-    IPTGvpList *curr = *base;
-    IPTGvpList *last;
-    while(curr) {
-        last = curr;
-        curr = curr->next;
-        free(last);
-    };
-}
-
-static void IPTHvp_evict(IPTHvp **entry, IPTHvpPtr *entryPtr) {
-    IPTGvpList_free(&((*entry)->head));
-    *entryPtr = (*entry)->next;
-    free(*entry);
-}
-
-static void IPTGvpList_insert(IPTHvp *entry, uint64_t ipt_bits) {
-    IPTGvpList **ptr = &entry->head;
-    while(*ptr) {
-        // Go to last entry
-        ptr = &(*ptr)->next;	
-    }
-    // Allocate entry
-    *ptr = malloc(sizeof(IPTGvpList));
-    (*ptr)->ipt_bits = ipt_bits;
-}
-
-static void IPTGvpList_get_chain(IPTHvp *entry, uint64_t *ipt_chain) {
-    IPTGvpList **ptr = &entry->head;
-    int gvpEntry = 0;
-    while(*ptr) {
-        ipt_chain[gvpEntry] = (*ptr)->ipt_bits; gvpEntry++;
-        ptr = &(*ptr)->next;	
-    }
-}
-
-static void IPTGvpList_del(IPTHvp *base, uint64_t ipt_bits) {
-    IPTGvpList **ptr = &base->head;
-    IPTGvpList *ele = base->head;
-    IPTGvpList *new_next;
-
-    while(ele != NULL && IPT_GET_CMP(ele->ipt_bits) != IPT_GET_CMP(ipt_bits)) {
-        ptr = &ele->next;
-        ele = ele->next;
-    }
-
-    if(ele) {
-        // Found matching entry
-        new_next = ele->next;   // Save ptr to next element in linked-list
-        free(*ptr);             // Delete entry
-        *ptr = new_next;        // Linked-list skips deleted element
-    }
-}
-
-
-/**
- * IPTHvp_get: Get IPT entry from the HVP
- *
- * Returns 'entry' which points to the IPT entry and 
- * 'entryPtr' which stores the ptr that points to 'entry' location
- *
- * If *entry is NULL then the HVP is not present in the FPGA
- *
- * @hvp: Host Virtual Page of IPT entry to find
- * @entry:    ret pointer to the matching hvp entry 
- * @entryPtr: ret pointer to the 'entry' ptr
- */
-static void IPTHvp_get(uint64_t hvp, IPTHvp **entry, IPTHvpPtr **entryPtr) {
-    size_t entry_idx = IPT_hash(hvp);
-    *entry = ipt.entries[entry_idx];
-    *entryPtr = &ipt.entries[entry_idx];
-    while((*entry) != NULL && (*entry)->hvp != hvp) {
-        *entryPtr = &((*entry)->next);
-        *entry = (*entry)->next;
-    }
-}
-
-static bool IPTHvp_insert_Gvp(uint64_t hvp, uint64_t ipt_bits) {
-    IPTHvp *entry;
-    IPTHvpPtr *entryPtr;
-    bool has_synonyms = true;
-
-    IPTHvp_get(hvp, &entry, &entryPtr);
-    if(!entry) {
-        // Create HVP entry if not present
-        *entryPtr = malloc(sizeof(IPTHvp));
-        entry = *entryPtr;
-        entry->hvp = hvp;
-        entry->cnt = 0;
-        entry->head = NULL;
-        entry->next = NULL;
-        has_synonyms = false;
-    }
-
-    IPTGvpList_insert(entry, ipt_bits);
-    entry->cnt++;
-    return has_synonyms;
-}
-
-static int IPTHvp_get_Gvp_synonyms(uint64_t hvp, uint64_t **ipt_chain) {
-    int count = 0;
-    IPTHvp *entry;
-    IPTHvpPtr *entryPtr;
-
-    IPTHvp_get(hvp, &entry, &entryPtr);
-    if(entry) {
-        // Has synonyms, return synonym list
-        count = entry->cnt;
-        *ipt_chain = calloc(entry->cnt, sizeof(uint64_t));
-        IPTGvpList_get_chain(entry, *ipt_chain);
-    }
-
-    return count;
-}
-
-static void IPTHvp_evict_Gvp(uint64_t hvp, uint64_t ipt_bits) {
-    IPTHvp *entry;
-    IPTHvpPtr *entryPtr;
-    
-    IPTHvp_get(hvp, &entry, &entryPtr);
-    IPTGvpList_del(entry, ipt_bits);
-    entry->cnt--;
-    if(entry->head == NULL) {
-        // There's no more gvp mapped to this hvp after eviction
-        IPTHvp_evict(&entry, entryPtr);
-    }
-}
+static GHashTable *ipt;
 
 #define ASID_ENTRIES (1 << 16) // Particular to architecture
 static uint64_t ttbr_list[ASID_ENTRIES] = {0}; // Used to retranslate GVA to HVA
@@ -170,30 +21,84 @@ void register_asid(uint64_t asid, uint64_t asid_reg) {
 }
 
 int ipt_evict(uint64_t hvp, uint64_t ipt_bits) {
-    IPTHvp_evict_Gvp(hvp, ipt_bits);
+    GHashTable *set = g_hash_table_lookup(ipt, &hvp);
+    if (set == NULL){
+        qemu_log("Warning: Try to evict a non-existed hvp from the IPT. \n");
+        qemu_log("Information: The HVP is %lu, and the ipt_bits is %lu. \n", hvp, ipt_bits);
+        return 0;
+    }
+    uint64_t *target_ipt = g_hash_table_lookup(set, &ipt_bits);
+    if (target_ipt == NULL) {
+        qemu_log("Warning: Try to evict a non-existed ipt_bits from the IPT. \n");
+        qemu_log("Information: The HVP is %lu, and the ipt_bits is %lu. \n", hvp, ipt_bits);
+        return 0;
+    }
+
+    if(*target_ipt != ipt_bits) {
+        qemu_log("Warning: Sainity check in IPT failed. The required ipt_btis is %lu. \n", ipt_bits);
+        return 0;
+    }
+
+    // evict the element
+    g_hash_table_remove(set, &ipt_bits);
+    // if the set is empty, also remove the set
+    if(g_hash_table_size(set) == 0){
+        g_hash_table_destroy(set);
+        g_hash_table_remove(ipt, &hvp);
+    }
     return 0;
 }
 
 int ipt_add_entry(uint64_t hvp, uint64_t ipt_bits) {
-    bool has_synonyms = IPTHvp_insert_Gvp(hvp, ipt_bits);
-    if(has_synonyms) {
-        return SYNONYM;
-    } else {
+    GHashTable *set = g_hash_table_lookup(ipt, &hvp);
+    if(set == NULL){
+        // OK, so it's the first element.
+        // create the set
+        GHashTable *synonyms_set = g_hash_table_new(g_int64_hash, g_int64_equal);
+        // append the element into the set
+        g_hash_table_insert(synonyms_set, &ipt_bits, &ipt_bits);
+        // insert the set to the ipt
+        g_hash_table_insert(ipt, &hvp, synonyms_set);
         return PAGE;
+    } else {
+        // append the element into the set
+        g_hash_table_insert(set, &ipt_bits, &ipt_bits);
+        return SYNONYM;
     }
 }
 
-void ipt_init(size_t nb_buckets) {
-    ipt.entries = calloc(nb_buckets, sizeof(IPTHvpPtr));
-    ipt.nbEntries = nb_buckets;
-    for(int entry = 0; entry < nb_buckets; entry++) {
-        ipt.entries[entry] = NULL;
-    }
+void ipt_init(void) {
+    ipt = g_hash_table_new(g_int64_hash, g_int64_equal);
 }
 
+/**
+ * @brief fetch all synonyms mapped to one specifc hvp
+ * @param hvp the hvp as index
+ * @param ipt_chain the array. The caller takes the responsibility to release it.
+ * 
+ * @return count of ipt_chain
+ */
 int ipt_check_synonyms(uint64_t hvp, uint64_t **ipt_chain) {
-    int count = IPTHvp_get_Gvp_synonyms(hvp, ipt_chain);
-    return count;
+    GHashTable *set = g_hash_table_lookup(ipt, &hvp);
+    if(set == NULL){
+        return 0;
+    }
+    unsigned int res = 0;
+    gpointer *array = g_hash_table_get_keys_as_array(set, &res);
+
+    if(res == 0){
+        g_free(array);
+        return 0;
+    }
+
+    *ipt_chain = calloc(res, sizeof(uint64_t));
+    for(int i = 0; i < res; ++i){
+        (*ipt_chain)[i] = *(uint64_t *)array[i];
+    }
+
+    g_free(array);
+
+    return res;
 }
 
 /* Evictions are done lazely, and translation from GVA to HVA require the CPUState, which 
