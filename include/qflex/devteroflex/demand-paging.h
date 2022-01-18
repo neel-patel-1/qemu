@@ -1,6 +1,10 @@
 #ifndef DEVTEROFLEX_PAGE_DEMANDER_H
 #define DEVTEROFLEX_PAGE_DEMANDER_H
 
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+
 /* 
  * Layout of Guest VA (GVA)
  * GVA |  isKernel(K)  | PAGE_NUMBER | PAGE_OFFST |
@@ -53,7 +57,7 @@ int ipt_evict(uint64_t hvp, uint64_t ipt_bits);
 int ipt_check_synonyms(uint64_t hvp, uint64_t **ipt_chain);
 /* Init inverted page table
  */
-void ipt_init(size_t nb_buckets);
+void ipt_init(void);
 
 /* Store architectural register of ASID and Base Address of physical page for
  * retranslating address later.
@@ -100,12 +104,14 @@ bool fpga_paddr_get(uint64_t *paddr);
 void fpga_paddr_push(uint64_t paddr);
 void fpga_paddr_free_stack(void);
 
+struct CPUState;
+
 /* Call this function before a tcg_gen_qemu_ld/st is executed
  * to make sure that QEMU has the latest page modifications
  * NOTE: Uses 'qflex_mem_trace' helper as trigger which is 
  * generated before memory instructions
  */ 
-void devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type);
+void devteroflex_synchronize_page(struct CPUState *cpu, uint64_t vaddr, int type);
 
 bool insert_entry_get_ppn(uint64_t hvp, uint64_t ipt_bits, uint64_t *ppn);
  

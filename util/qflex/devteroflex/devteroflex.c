@@ -19,9 +19,15 @@
 #include "qflex/devteroflex/simulation/fpga_interface.h"
 #endif
 
+#include <glib.h>
+
 DevteroflexConfig devteroflexConfig = { false, false };
 static FPGAContext c;
 static DevteroflexArchState state;
+
+// Temporal page table. 
+GHashTable *tpt = NULL;
+GHashTable *ipt = NULL;
 
 // List of cpus in the FPGA
 static uint32_t running_cpus;
@@ -84,6 +90,14 @@ static void transplant_pull_all_cpus(void) {
     }
 }
 
+/**
+ * @brief temporal function to print the content in the tpt.
+ * 
+ */
+static void print_ghash_table(gpointer key, gpointer value, gpointer user_data) {
+    qemu_log("Temporal PT[%lu] = %lu \n", *(uint64_t *)key, *(uint64_t *)value);
+}
+
 /* @return true in case the message has completely evicted, 
  *         false in case we are waiting for clearing eviction.
  */
@@ -100,8 +114,27 @@ static bool handle_evict_notify(MessageFPGA *message) {
      * We can hack it for synchronized pages by passing the CPU index from QEMU to the FPGA
      */ 
     // uint64_t hvp = page_table_get_hvp(ipt_bits, perm);
-    uint64_t hvp = gva_to_hva(qemu_get_cpu(0), gva, perm);
-    assert(hvp != -1);
+    // uint64_t hvp = gva_to_hva(qemu_get_cpu(0), gva, perm);
+    // assert(hvp != -1);
+
+    // assert(g_hash_table_lookup(tpt, &ipt_bits) != NULL);
+
+    if (g_hash_table_lookup(tpt, &ipt_bits) == NULL) {
+        // dump the message info.
+        qemu_log("Unable to find temporal translation for the following page: \n VA: %lu, ASID: %u, Permission: %lu \n", gva, asid, perm);
+
+        qemu_log("The generated key for hash table is %lu \n", ipt_bits);
+
+        qemu_log("Now backtrace the content in the temporal page table... \n");
+
+        g_hash_table_foreach(tpt, print_ghash_table, NULL);
+
+        assert(false);
+    }
+
+
+    uint64_t hvp = *(uint64_t *)g_hash_table_lookup(tpt, &ipt_bits);
+
     if(modified) {
         // Wait for EvictDone, eviction underprogress
         evict_notify_pending_add(ipt_bits, hvp);
@@ -109,6 +142,7 @@ static bool handle_evict_notify(MessageFPGA *message) {
     } else {
         // Evict entry directly as there wont be any future evict message
         ipt_evict(hvp, ipt_bits);
+        g_hash_table_remove(tpt, &ipt_bits);
         fpga_paddr_push(ppn);
         return true;
     }
@@ -124,13 +158,17 @@ static void handle_evict_writeback(MessageFPGA * message) {
     uint64_t ipt_bits = IPT_COMPRESS(gvp, asid, perm);
 
     // uint64_t hvp = page_table_get_hvp(ipt_bits, perm); // TODO
-    uint64_t hvp = gva_to_hva(qemu_get_cpu(0), gvp, perm);
-    assert(hvp != -1);
+    // uint64_t hvp = gva_to_hva(qemu_get_cpu(0), gvp, perm);
+    // assert(hvp != -1);
+
+    assert(g_hash_table_lookup(tpt, &ipt_bits) != NULL);
+    uint64_t hvp = *(uint64_t *)g_hash_table_lookup(tpt, &ipt_bits);
  
     fetchPageFromFPGA(&c, ppn, (void *) hvp);
     page_fault_pending_run(hvp);
     evict_notfiy_pending_clear(ipt_bits);
     ipt_evict(hvp, ipt_bits);
+    g_hash_table_remove(tpt, &ipt_bits);
     fpga_paddr_push(ppn);
 }
 
@@ -155,6 +193,8 @@ static void handle_page_fault(MessageFPGA *message) {
         qemu_log("DevteroFlex: Page Fault address matched currently evicting phyisical page.\n");
         page_fault_pending_add(ipt_bits, hvp, thid);
     } else {
+        // now this page is pushed to the FPGA, we also put the mapping in the tpt.
+        g_hash_table_insert(tpt, &ipt_bits, &hvp);
         page_fault_return(ipt_bits, hvp, thid);
         bool has_pending = page_fault_pending_run(hvp);
         assert(!has_pending);
@@ -277,8 +317,6 @@ static int devteroflex_execution_flow(void) {
     while(1) {
        // Check and run all pending transplants
        if(transplants_has_pending(&pending)) {
-           qemu_log("DevteroFlex: Transplants: %x", pending);
-
            transplants_run(pending);
        }
        // Run all pending messages from a synchronization
@@ -290,7 +328,6 @@ static int devteroflex_execution_flow(void) {
        }
        // Check and run all pending messages
        while(message_has_pending(&msg)) {
-           qemu_log("DevteroFlex: Memory Message");
            message_run(msg);
        }
 
@@ -352,7 +389,8 @@ void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages) {
         }
         // TODO choose smarter hashing
         // Hashing function is straight forward modulo
-        int modulo_hash = 4096;
-        ipt_init(modulo_hash);
+        ipt_init();
+        // Initialize the tpt.
+        tpt = g_hash_table_new(g_int64_hash, g_int64_equal);
     }
 }

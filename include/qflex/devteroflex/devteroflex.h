@@ -25,6 +25,7 @@ typedef struct DevteroflexConfig {
 } DevteroflexConfig;
 
 extern DevteroflexConfig devteroflexConfig;
+extern GHashTable *tpt;
 
 void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages);
 
