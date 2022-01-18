@@ -1,4 +1,6 @@
+#include <bits/stdint-uintn.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include "util/circular-buffer.h"
 #include "qflex/qflex.h"
 #include "qflex/devteroflex/devteroflex.h"
@@ -11,10 +13,42 @@
 
 #include <glib.h>
 
+// TODO: Rewrite this file with C++.
+
 static GHashTable *ipt;
 
 #define ASID_ENTRIES (1 << 16) // Particular to architecture
 static uint64_t ttbr_list[ASID_ENTRIES] = {0}; // Used to retranslate GVA to HVA
+
+static void printIPT(void){
+    GHashTableIter out;
+    gpointer hvp;
+    gpointer set;
+    g_hash_table_iter_init(&out, ipt);
+    while(g_hash_table_iter_next(&out, &hvp, &set)){
+        uint64_t u64_hvp = *(uint64_t *)hvp;
+        GHashTable *hash_set = set;
+
+        qemu_log("HVP[%lu]: ", u64_hvp);
+
+        if(hash_set == NULL) {
+            qemu_log("\n");
+            continue;
+        };
+
+        GHashTableIter sub_iter;
+        g_hash_table_iter_init(&sub_iter, hash_set);
+        gpointer ipt_bits_ptr;
+        gpointer ipt_bits_ptr_unused;
+
+        while(g_hash_table_iter_next(&sub_iter, &ipt_bits_ptr, &ipt_bits_ptr_unused)){
+            uint64_t ipt = *(uint64_t *)ipt_bits_ptr;
+            qemu_log("%lu ", ipt);
+        }
+
+        qemu_log("\n");
+    }
+}
 
 void register_asid(uint64_t asid, uint64_t asid_reg) {
     ttbr_list[asid] = asid_reg;
@@ -25,18 +59,20 @@ int ipt_evict(uint64_t hvp, uint64_t ipt_bits) {
     if (set == NULL){
         qemu_log("Warning: Try to evict a non-existed hvp from the IPT. \n");
         qemu_log("Information: The HVP is %lu, and the ipt_bits is %lu. \n", hvp, ipt_bits);
-        return 0;
+        printIPT();
+        abort();
     }
     uint64_t *target_ipt = g_hash_table_lookup(set, &ipt_bits);
     if (target_ipt == NULL) {
         qemu_log("Warning: Try to evict a non-existed ipt_bits from the IPT. \n");
         qemu_log("Information: The HVP is %lu, and the ipt_bits is %lu. \n", hvp, ipt_bits);
-        return 0;
+        printIPT();
+        abort();
     }
 
     if(*target_ipt != ipt_bits) {
         qemu_log("Warning: Sainity check in IPT failed. The required ipt_btis is %lu. \n", ipt_bits);
-        return 0;
+        abort();
     }
 
     // evict the element
@@ -54,21 +90,29 @@ int ipt_add_entry(uint64_t hvp, uint64_t ipt_bits) {
     if(set == NULL){
         // OK, so it's the first element.
         // create the set
-        GHashTable *synonyms_set = g_hash_table_new(g_int64_hash, g_int64_equal);
+        GHashTable *synonyms_set = g_hash_table_new_full(g_int64_hash, g_int64_equal, free, NULL);
         // append the element into the set
-        g_hash_table_insert(synonyms_set, &ipt_bits, &ipt_bits);
+        uint64_t *ipt_bits_index = calloc(1, sizeof(uint64_t));
+        *ipt_bits_index = ipt_bits;
+        g_hash_table_insert(synonyms_set, ipt_bits_index, ipt_bits_index);
+
         // insert the set to the ipt
-        g_hash_table_insert(ipt, &hvp, synonyms_set);
+        uint64_t *hvp_index = calloc(1, sizeof(uint64_t));
+        *hvp_index = hvp;
+        g_hash_table_insert(ipt, hvp_index, synonyms_set);
+
         return PAGE;
     } else {
         // append the element into the set
-        g_hash_table_insert(set, &ipt_bits, &ipt_bits);
+        uint64_t *ipt_bits_index = calloc(1, sizeof(uint64_t));
+        *ipt_bits_index = ipt_bits;
+        g_hash_table_insert(set, ipt_bits_index, ipt_bits_index);
         return SYNONYM;
     }
 }
 
 void ipt_init(void) {
-    ipt = g_hash_table_new(g_int64_hash, g_int64_equal);
+    ipt = g_hash_table_new_full(g_int64_hash, g_int64_equal, free, NULL);
 }
 
 /**

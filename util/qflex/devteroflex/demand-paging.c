@@ -89,7 +89,7 @@ bool page_fault_pending_run(uint64_t hvp) {
             hvp == pendingRequests.hvp[i]) {
             has_pending = true;
             pendingRequests.bitmap &= ~mask;
-            g_hash_table_insert(tpt, &pendingRequests.ipt_bits[i], &pendingRequests.hvp[i]);
+            tpt_add_entry(pendingRequests.ipt_bits[i], pendingRequests.hvp[i]);
             page_fault_return(pendingRequests.ipt_bits[i], pendingRequests.hvp[i], pendingRequests.thid[i]);
         }
     }

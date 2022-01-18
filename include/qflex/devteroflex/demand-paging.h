@@ -59,6 +59,37 @@ int ipt_check_synonyms(uint64_t hvp, uint64_t **ipt_chain);
  */
 void ipt_init(void);
 
+/**
+ * @brief insert an entry to the temporal page table.
+ * 
+ * @param ipt_bits the VA+ASID+Permission
+ * @param hvp the host virtual address
+ */
+void tpt_add_entry(uint64_t ipt_bits, uint64_t hvp);
+
+/**
+ * @brief remove an entry from the temporal page table.
+ * 
+ * @param ipt_bits the VA+ASID+Permission
+ */
+void tpt_remove_entry(uint64_t ipt_bits);
+
+/**
+ * @brief query the temporal page table with the ipt_bits.
+ * 
+ * @param ipt_bits the VA+ASID+Permission
+ * @return the host virtual address
+ * 
+ * @note abort will be called in case no such an element is found in the table.
+ */
+uint64_t tpt_lookup(uint64_t ipt_bits);
+
+/**
+ * @brief initilize the temporal page table.
+ */
+void tpt_init(void);
+
+
 /* Store architectural register of ASID and Base Address of physical page for
  * retranslating address later.
  */
