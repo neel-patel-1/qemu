@@ -255,10 +255,7 @@ void page_eviction_wait_complete(uint64_t *ipt_list, int count) {
                     matched = true;
                     // This message is one of the messages we were waiting for
                     if(msg.type == sEvictNotify) {
-                        bool noWriteback = handle_evict_notify(&msg);
-                        if (noWriteback) { 
-                            left--;
-                        }
+                        handle_evict_notify(&msg);
                     } else if (msg.type == sEvictDone) {
                         handle_evict_writeback(&msg);
                         left--;
