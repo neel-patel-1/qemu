@@ -249,7 +249,9 @@ void page_eviction_wait_complete(uint64_t *ipt_list, int count) {
             matched = false;
             for (int entry = 0; entry < count; entry++) {
                 uint64_t ipt_bits = ipt_list[entry];
-                if(IPT_GET_VA(ipt_bits) == gvp && IPT_GET_ASID(ipt_bits) == asid) {
+                uint64_t entry_gvp = IPT_GET_VA(ipt_bits);
+                uint32_t entry_asid = IPT_GET_ASID(ipt_bits);
+                if(entry_gvp == gvp && entry_asid == asid) {
                     matched = true;
                     // This message is one of the messages we were waiting for
                     if(msg.type == sEvictNotify) {

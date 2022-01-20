@@ -145,7 +145,10 @@ void devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
 
     if(!synchronize) {
         // Neither a store, or any of the FPGA pages has store permissions
+        qemu_log("QEMU detected page in FPGA and does not require synchronization.\n");
         return;
+    } else {
+        qemu_log("QEMU detected page in FPGA and requires synchronization.\n");
     }
 
     

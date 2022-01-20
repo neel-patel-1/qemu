@@ -24,7 +24,7 @@
 #define IPT_MASK_P          (0b11ULL)
 #define PAGE_MASK           (0xfffULL)
 
-#define IPT_GET_ASID(bits)           (bits >> 48)
+#define IPT_GET_ASID(bits)          ((bits & ~IPT_MASK_isKernel) >> 48)
 #define IPT_GET_VA_BITS(bits)       (bits & IPT_MASK_PAGE_NB)
 #define IPT_GET_KERNEL_BITS(bits)   ((bits & IPT_MASK_isKernel) ? (0xffffULL << 48) : 0x0)
 #define IPT_GET_PERM(bits)           (bits & IPT_MASK_P)
