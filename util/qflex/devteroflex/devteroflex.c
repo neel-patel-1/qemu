@@ -42,6 +42,10 @@ static void run_transplant(CPUState *cpu, uint32_t thread) {
     devteroflex_unpack_archstate(cpu, &state);
     if(devteroflex_is_running()) {
         qflex_singlestep(cpu);
+        // continue until supervised instructions are runned.
+        while(QFLEX_GET_ARCH(el)(cpu) != 0){
+            qflex_singlestep(cpu);
+        }
         // Singlestepping might update DevteroFlex
         if(devteroflex_is_running()) {
             cpu_push_fpga(cpu->cpu_index);
