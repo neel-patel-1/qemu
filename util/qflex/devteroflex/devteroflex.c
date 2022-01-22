@@ -156,7 +156,17 @@ static void handle_page_fault(MessageFPGA *message) {
     uint32_t asid = message->asid;
 
     CPUState *cpu = qemu_get_cpu(thid);
-    uint64_t hvp = gva_to_hva(cpu, gvp, message->PageFaultNotif.permission);
+    // find the highest permission of a data page
+    uint64_t hvp = -1;
+    if (perm == MMU_DATA_LOAD) {
+        hvp = gva_to_hva(cpu, gvp, MMU_DATA_STORE);
+        if(hvp == -1) 
+            hvp = gva_to_hva(cpu, gvp, MMU_DATA_LOAD);
+        else
+            perm = MMU_DATA_STORE; // give R/W permission
+    } else {
+        hvp = gva_to_hva(cpu, gvp, perm);
+    }
     uint64_t ipt_bits = IPT_COMPRESS(gvp, asid, perm);
     qemu_log("DevteroFlex:PAGE_FAULT:thid[%i]:asid[%"PRIx32"]:addr[0x%"PRIx64"]\n", thid, asid, gvp);
     if(hvp == -1) {
