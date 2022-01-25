@@ -139,7 +139,7 @@ int transplant_pending(const FPGAContext *c, uint32_t *pending_threads);
 int transplant_freePending(const FPGAContext *c, uint32_t pending_threads);
 int transplant_waitTillPending(const FPGAContext *c, uint32_t *pending_threads);
 int transplant_start(const FPGAContext *c, uint32_t thread_id);
-
+int transplant_stopCPU(const FPGAContext *c, uint32_t thread_id);
 
 // See cpu.h to match MMUAccessType
 #ifndef MemoryAccessType

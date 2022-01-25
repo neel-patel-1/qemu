@@ -150,6 +150,11 @@ int transplant_start(const FPGAContext *c, uint32_t thread_id) {
   return writeAXIL(c, axi_transplant_ctrl_base + 4, 1 << thread_id);
 }
 
+int transplant_stopCPU(const FPGAContext *c, uint32_t thread_id) {
+  const uint32_t axi_transplant_ctrl_base = c->base_address.axil_base + c->base_address.transplant_ctl;
+  return writeAXIL(c, axi_transplant_ctrl_base + 8, 1 << thread_id);
+}
+
 /**
  * Block till there's a message in the MMU pending.
  * @param message the buffer for the message.
