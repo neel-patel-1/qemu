@@ -175,7 +175,7 @@ static void handle_page_fault(MessageFPGA *message) {
     qemu_log("DevteroFlex:PAGE_FAULT:thid[%i]:asid[%"PRIx32"]:addr[0x%"PRIx64"]\n", thid, asid, gvp);
     if(hvp == -1) {
         qemu_log("   ---- page fault translation miss, run instruction.\n");
-        transplant_stopCPU(&c, thid);
+        transplant_forceTransplant(&c, thid);
         return;
     }
 
