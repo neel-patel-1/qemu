@@ -93,7 +93,7 @@ void tpt_init(void);
 /* Store architectural register of ASID and Base Address of physical page for
  * retranslating address later.
  */
-void register_asid(uint64_t asid, uint64_t asid_reg);
+void ipt_register_asid(uint64_t asid, uint64_t asid_reg);
 
 /* If an evicted page is modified, save pending eviction while waiting for writeback
  */

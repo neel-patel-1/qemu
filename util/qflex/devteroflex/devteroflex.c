@@ -67,7 +67,7 @@ static void run_transplant(CPUState *cpu, uint32_t thread) {
             // handle exception will change the state, so it
             if(devteroflex_is_running()) {
                 cpu_push_fpga(cpu->cpu_index);
-                register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
+                ipt_register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
                 devteroflex_pack_archstate(&state, cpu);
                 transplant_pushState(&c, thread, (uint64_t *) &state);
                 transplant_start(&c, thread);

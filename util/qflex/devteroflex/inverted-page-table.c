@@ -50,7 +50,7 @@ static void printIPT(void){
     }
 }
 
-void register_asid(uint64_t asid, uint64_t asid_reg) {
+void ipt_register_asid(uint64_t asid, uint64_t asid_reg) {
     ttbr_list[asid] = asid_reg;
 }
 
