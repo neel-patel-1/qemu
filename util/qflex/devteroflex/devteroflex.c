@@ -44,6 +44,10 @@ static void run_transplant(CPUState *cpu, uint32_t thread) {
         if(devteroflex_is_running()) {
             qflex_singlestep(cpu);
         }
+        // It's possible that QEMU enters the system mode.
+        while(QFLEX_GET_ARCH(el)(cpu) != 0){
+            qflex_singlestep(cpu);
+        }
         if(devteroflex_compare_archstate(cpu, &state)) {
             // Dangerous!!!
             qemu_log("Warning: An architecture state mismatch has been detected. Quitting QEMU now. \n");
@@ -69,9 +73,18 @@ static void run_transplant(CPUState *cpu, uint32_t thread) {
                 cpu_push_fpga(cpu->cpu_index);
                 ipt_register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
                 devteroflex_pack_archstate(&state, cpu);
-                transplant_pushState(&c, thread, (uint64_t *) &state);
+
+                registerAndPushState(&c, thread, QFLEX_GET_ARCH(asid)(cpu), &state);
+                if(devteroflexConfig.is_debug) {
+                    transplant_stopCPU(&c, thread);
+                }
                 transplant_start(&c, thread);
             }
+        }
+    } else { // It's a single step mode.
+        if(devteroflex_is_running()) {
+            cpu_push_fpga(cpu->cpu_index);
+            transplant_singlestep(&c, thread, QFLEX_GET_ARCH(asid)(cpu), &state);
         }
     }
 }
@@ -91,10 +104,16 @@ static void transplant_push_all_cpus(void) {
     CPUState *cpu;
     CPU_FOREACH(cpu) {
         cpu_push_fpga(cpu->cpu_index);
-        registerThreadWithProcess(&c, cpu->cpu_index, QFLEX_GET_ARCH(asid)(cpu));
-        register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
+        ipt_register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
         devteroflex_pack_archstate(&state, cpu);
-        transplant_pushState(&c, cpu->cpu_index, (uint64_t *)&state);
+        // registerThreadWithProcess(&c, cpu->cpu_index, QFLEX_GET_ARCH(asid)(cpu));
+        // transplant_pushState(&c, cpu->cpu_index, (uint64_t *)&state);
+        registerAndPushState(&c, cpu->cpu_index, QFLEX_GET_ARCH(asid)(cpu), &state);
+
+        if(devteroflexConfig.is_debug) {
+            transplant_stopCPU(&c, cpu->cpu_index);
+        }
+
         transplant_start(&c, cpu->cpu_index);
     }
 }
