@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "qemu/osdep.h"
@@ -11,18 +12,16 @@
 #include "qflex/devteroflex/devteroflex.h"
 #include "qflex/devteroflex/demand-paging.h"
 #include "qflex/qflex-traces.h"
-
-#ifdef AWS_FPGA
-#include "qflex/devteroflex/aws/fpga.h"
-#include "qflex/devteroflex/aws/fpga_interface.h"
-#else
-#include "qflex/devteroflex/simulation/fpga.h"
-#include "qflex/devteroflex/simulation/fpga_interface.h"
-#endif
+#include "qflex/devteroflex/verification.h"
 
 #include <glib.h>
 
-DevteroflexConfig devteroflexConfig = { false, false };
+DevteroflexConfig devteroflexConfig = { 
+    .is_debug = false,
+    .enabled = false,
+    .running = false,
+};
+
 static FPGAContext c;
 static DevteroflexArchState state;
 
@@ -38,21 +37,41 @@ static void run_transplant(CPUState *cpu, uint32_t thread) {
     assert(cpu->cpu_index == thread);
     assert(cpu_in_fpga(thread));
     cpu_pull_fpga(cpu->cpu_index);
-    transplant_getState(&c, thread, (uint64_t *) &state, DEVTEROFLEX_TOT_REGS);
-    devteroflex_unpack_archstate(cpu, &state);
-    if(devteroflex_is_running()) {
-        qflex_singlestep(cpu);
-        // continue until supervised instructions are runned.
-        while(QFLEX_GET_ARCH(el)(cpu) != 0){
+    transplant_getState(&c, thread, (uint64_t *) &state);
+
+    // In debug mode, we should advance the QEMU by one step and do comparison.
+    if(devteroflexConfig.is_debug) {
+        if(devteroflex_is_running()) {
             qflex_singlestep(cpu);
         }
-        // Singlestepping might update DevteroFlex
+        if(devteroflex_compare_archstate(cpu, &state)) {
+            // Dangerous!!!
+            qemu_log("Warning: An architecture state mismatch has been detected. Quitting QEMU now. \n");
+            abort();
+        }
+    } else {
+        // the state is moved back.
+        devteroflex_unpack_archstate(cpu, &state);
+    }
+
+    // in case it's an exception or page fault.
+    if(FLAGS_GET_IS_EXCEPTION(state.flags) | FLAGS_GET_IS_UNDEF(state.flags)) {
         if(devteroflex_is_running()) {
-            cpu_push_fpga(cpu->cpu_index);
-            register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
-            devteroflex_pack_archstate(&state, cpu);
-            transplant_pushState(&c, thread, (uint64_t *) &state, DEVTEROFLEX_TOT_REGS);
-            transplant_start(&c, thread);
+            // Execute the exception instruction
+            qflex_singlestep(cpu);
+            // continue until supervised instructions are runned.
+            while(QFLEX_GET_ARCH(el)(cpu) != 0){
+                qflex_singlestep(cpu);
+            }
+
+            // handle exception will change the state, so it
+            if(devteroflex_is_running()) {
+                cpu_push_fpga(cpu->cpu_index);
+                register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
+                devteroflex_pack_archstate(&state, cpu);
+                transplant_pushState(&c, thread, (uint64_t *) &state);
+                transplant_start(&c, thread);
+            }
         }
     }
 }
@@ -75,7 +94,7 @@ static void transplant_push_all_cpus(void) {
         registerThreadWithProcess(&c, cpu->cpu_index, QFLEX_GET_ARCH(asid)(cpu));
         register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
         devteroflex_pack_archstate(&state, cpu);
-        transplant_pushState(&c, cpu->cpu_index, (uint64_t *)&state, DEVTEROFLEX_TOT_REGS);
+        transplant_pushState(&c, cpu->cpu_index, (uint64_t *)&state);
         transplant_start(&c, cpu->cpu_index);
     }
 }
@@ -87,7 +106,7 @@ static void transplant_pull_all_cpus(void) {
         if(!cpu_in_fpga(cpu->cpu_index)) {
             qemu_log("DevteroFlex: WARNING: Forcing transplants back doesn't stop execution yet.\n");
             cpu_pull_fpga(cpu->cpu_index);
-            transplant_getState(&c, cpu->cpu_index, (uint64_t *) &state, DEVTEROFLEX_TOT_REGS);
+            transplant_getState(&c, cpu->cpu_index, (uint64_t *) &state);
             devteroflex_unpack_archstate(cpu, &state);
         }
     }
@@ -145,7 +164,22 @@ static void handle_evict_writeback(MessageFPGA * message) {
 
     uint64_t hvp = tpt_lookup(ipt_bits);
  
-    fetchPageFromFPGA(&c, ppn, (void *) hvp);
+    if(devteroflexConfig.is_debug) {
+        uint8_t page_buffer[4096];
+        fetchPageFromFPGA(&c, ppn, (void *)&page_buffer);
+        // compare the page with QEMU
+        uint8_t *page_in_qemu = (uint8_t *)hvp;
+        for (int i = 0; i < 4096; ++i) {
+            if(page_in_qemu[i] != page_buffer[i]){
+                // Dangerous!
+                qemu_log("Page mismatching is detected.\n VA: %lx, ASID: %x, PERM: %lu \n", gvp, asid, perm);                
+                abort();
+            }
+        }
+    } else {
+        fetchPageFromFPGA(&c, ppn, (void *) hvp);
+    }
+
     page_fault_pending_run(hvp);
     evict_notfiy_pending_clear(ipt_bits);
     ipt_evict(hvp, ipt_bits);
@@ -219,7 +253,7 @@ static void message_run(MessageFPGA message) {
         break;
     default:
         perror("Message type received by FPGA doesn't match any of the existing types.\n");
-        exit(EXIT_FAILURE);
+        abort();
         break;
     }
 }
@@ -275,7 +309,7 @@ void page_eviction_wait_complete(uint64_t *ipt_list, int count) {
                         left--;
                     } else {
                         perror("DevteroFlex: Message should have been an evict response while synchronizing page\n.");
-                        exit(EXIT_FAILURE);
+                        abort();
                     }
 
                     break; // Break search for matching entry
@@ -289,7 +323,7 @@ void page_eviction_wait_complete(uint64_t *ipt_list, int count) {
                 message_buffer_curr_entry++;
                 if(message_buffer_curr_entry>256) {
                     perror("DevteroFlex: Ran out of message entries.\n");
-                    exit(EXIT_FAILURE);
+                    abort();
                 }
             }
         }
@@ -368,19 +402,19 @@ void devteroflex_stop_full(void) {
     //qflex_mem_trace_stop();
 }
 
-void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages) {
+void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, bool is_debug) {
     devteroflexConfig.enabled = enabled;
     devteroflexConfig.running = run;
+    devteroflexConfig.is_debug = is_debug;
     if(fpga_physical_pages != -1) {
         initFPGAContext(&c);
         if (fpga_paddr_init_manager(fpga_physical_pages, c.base_address.page_base)) {
             perror("DevteroFlex: Couldn't init the stack for keepign track of free phyiscal pages in the fpga.\n");
-            exit(EXIT_FAILURE);
+            abort();
         }
-        // TODO choose smarter hashing
-        // Hashing function is straight forward modulo
+        // Initialize the inverted page table.
         ipt_init();
-        // Initialize the tpt.
+        // Initialize the temporal page table.
         tpt_init();
     }
 }

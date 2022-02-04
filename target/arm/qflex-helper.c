@@ -158,7 +158,8 @@ void HELPER(qflex_mem_trace)(CPUARMState* env, uint64_t addr, uint64_t type) {
     }
 
 #ifdef CONFIG_DEVTEROFLEX
-    if(devteroflex_is_enabled()) {
+    if(devteroflex_is_enabled() && !devteroflexConfig.is_debug) {
+        // In debug mode, we only sync page after the operation is done.
         if(type != MMU_INST_FETCH) {
             devteroflex_synchronize_page(cs, addr, type);
         }
@@ -169,6 +170,22 @@ void HELPER(qflex_mem_trace)(CPUARMState* env, uint64_t addr, uint64_t type) {
             gen_verification_add_state(cs, addr);
         } else {
             gen_verification_add_mem(cs, addr);
+        }
+    }
+#endif
+}
+
+/**
+ * @brief the helper executed after a memory operation is done.
+ */
+void HELPER(qflex_post_mem)(CPUARMState* env, uint64_t addr, uint64_t type){
+#ifdef CONFIG_DEVTEROFLEX
+    CPUState *cs = CPU(env_archcpu(env));
+    if(devteroflex_is_enabled() && devteroflexConfig.is_debug) {
+        if(type != MMU_INST_FETCH) {
+            // here the page checking will be done.
+            // it will evicted related pages.
+            devteroflex_synchronize_page(cs, addr, type);
         }
     }
 #endif

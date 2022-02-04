@@ -8,6 +8,7 @@ devteroflex_ss.add([files(
   'verification.c',
   'custom-instrumentation.c',
   'devteroflex.c',
+  'emulation-logger.c',
  ), devteroflex])
 
 if 'AWS_FPGA' in config_host

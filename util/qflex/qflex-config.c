@@ -60,6 +60,10 @@ QemuOptsList qemu_devteroflex_opts = {
             .name = "dram-pages",
             .type = QEMU_OPT_NUMBER,
         },
+        {
+            .name = "debug",
+            .type = QEMU_OPT_BOOL,
+        },
         { /* end of list */ }
     },
 };
@@ -67,7 +71,8 @@ QemuOptsList qemu_devteroflex_opts = {
 static void devteroflex_configure(QemuOpts *opts, Error **errp) {
     bool run = qemu_opt_get_bool(opts, "run", false);
     uint64_t fpga_dram_size = qemu_opt_get_number(opts, "dram-pages", -1);
-    devteroflex_init(false, run, fpga_dram_size);
+    bool is_debug = qemu_opt_get_bool(opts, "debug", false);
+    devteroflex_init(false, run, fpga_dram_size, is_debug);
 }
 #endif /* CONFIG_DEVTEROFLEX */
 

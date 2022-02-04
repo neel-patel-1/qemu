@@ -4,7 +4,7 @@ message DevteroflexArchState_p {
 	repeated uint64 xregs = 1 [packed=false]; 
 	uint64 pc= 2;
 	uint64 sp = 3;
-	uint32 nzcv = 4;
+	uint32 flags = 4;
 }
 
 message DevteroflexCommitTrace_p {
@@ -16,3 +16,14 @@ message DevteroflexCommitTrace_p {
 	bytes inst_block_data = 5;
 	repeated bytes mem_block_data = 6;
 }
+
+// compressed version
+message DevteroflexDebugLogItem_p {
+	uint32 instruction = 1; // the instruction itself. (How can I get it?)
+	message UpdatedRegister {
+		uint32 id = 1; // 0 - 31: register, 32: PC, 33: SP, 34: flags
+		uint64 value = 2;
+	};
+	repeated UpdatedRegister updates = 2; // which register is updated?
+}
+

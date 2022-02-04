@@ -132,7 +132,8 @@ void devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
     }
 
     // Synchronize if it's a store
-    bool synchronize = (type == DATA_STORE);
+    // bool synchronize = (type == DATA_STORE);
+    bool synchronize = true;
     if(!synchronize) {
         // Search whenever FPGA might have modified page
         for(int entry = 0; entry < list_size; entry++) {

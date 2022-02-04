@@ -1,3 +1,6 @@
+#ifndef FPGA_INTERFACE_H
+#define FPGA_INTERFACE_H
+
 #include "fpga.h"
 
 #include <stddef.h>
@@ -110,14 +113,32 @@ typedef struct MessageFPGA
 #define VPN_GET_LO(va) (VPN_ALIGN(va) & 0xFFFFFFFF)
 #define GET_NZCV(nzcv) (nzcv & 0xF)
 
-// helper class
-typedef struct ArmflexArchState {
+/* This describes layour of arch state elements
+ *
+ * XREGS: uint64_t
+ * PC   : uint64_t
+ * SP   : uint64_t
+ * CF/VF/NF/ZF : uint64_t
+ */
+#define ARCH_PSTATE_PC_OFFST     (32)
+#define ARCH_PSTATE_SP_OFFST     (33)
+#define ARCH_PSTATE_FLAGS_OFFST  (34)
+#define ARCH_PSTATE_TOT_REGS     (35)
+#define ARCH_PSTATE_NF_MASK      (3)    // 64bit 3
+#define ARCH_PSTATE_ZF_MASK      (2)    // 64bit 2
+#define ARCH_PSTATE_CF_MASK      (1)    // 64bit 1
+#define ARCH_PSTATE_VF_MASK      (0)    // 64bit 0
+
+#define FLAGS_GET_NZCV(flags)           (flags & 0xF)
+#define FLAGS_GET_IS_EXCEPTION(flags)   (flags & (1 << 4))
+#define FLAGS_GET_IS_UNDEF(flags)       (flags & (1 << 5))
+
+typedef struct DevteroflexArchState {
 	uint64_t xregs[32];
 	uint64_t pc;
 	uint64_t sp;
-	uint64_t nzcv;
-} ArmflexArchState;
-
+	uint64_t flags;
+} DevteroflexArchState;
 
 int registerThreadWithProcess(const struct FPGAContext *c, uint32_t thread_id, uint32_t process_id);
 int checkRxMessageQueue(const struct FPGAContext *c, uint32_t *result);
@@ -128,19 +149,21 @@ int sendMessageToFPGA(const struct FPGAContext *c,  void *raw_message, size_t me
 int pushPageToFPGA(const struct FPGAContext *c, uint64_t paddr, void *page);
 int fetchPageFromFPGA(const struct FPGAContext *c, uint64_t paddr, void *buffer);
  
-int registerAndPushState(const struct FPGAContext *c, uint32_t thread_id, uint32_t process_id, const struct ArmflexArchState *state);
+int registerAndPushState(const struct FPGAContext *c, uint32_t thread_id, uint32_t process_id, DevteroflexArchState *state);
 int queryThreadState(const struct FPGAContext *c, uint32_t *pending_threads);
-int transplantBack(const struct FPGAContext *c, uint32_t thread_id, struct ArmflexArchState *state);
+int transplantBack(const struct FPGAContext *c, uint32_t thread_id, DevteroflexArchState *state);
 
 // Helper functions
-int transplant_getState(const FPGAContext *c, uint32_t thread_id, uint64_t *state, size_t regCount);
-int transplant_pushState(const FPGAContext *c, uint32_t thread_id, uint64_t *state, size_t regCount);
+int transplant_getState(const FPGAContext *c, uint32_t thread_id, uint64_t *state);
+int transplant_pushState(const FPGAContext *c, uint32_t thread_id, uint64_t *state);
+
 #define TRANS_REG_OFFST_PENDING          (0x4 * 0)
 #define TRANS_REG_OFFST_FREE_PENDING     (0x4 * 0)
 #define TRANS_REG_OFFST_START            (0x4 * 1)
 #define TRANS_REG_OFFST_STOP_CPU         (0x4 * 2)
 #define TRANS_REG_OFFST_FORCE_TRANSPLANT (0x4 * 3)
 
+int transplant_singlestep(const FPGAContext *c, uint32_t thid, uint32_t asid, DevteroflexArchState *state);
 int transplant_pending(const FPGAContext *c, uint32_t *pending_threads);
 int transplant_freePending(const FPGAContext *c, uint32_t pending_threads);
 int transplant_waitTillPending(const FPGAContext *c, uint32_t *pending_threads);
@@ -157,22 +180,6 @@ typedef enum MemoryAccessType {
 } MemoryAccessType;
 #define MemoryAccessType
 #endif
-
-/* This describes layour of arch state elements
- *
- * XREGS: uint64_t
- * PC   : uint64_t
- * SP   : uint64_t
- * NF/ZF/CF/VF : uint64_t
- */
-#define ARCH_PSTATE_PC_OFFST    (32)
-#define ARCH_PSTATE_SP_OFFST    (33)
-#define ARCH_PSTATE_NZCV_OFFST  (34)
-#define ARCH_PSTATE_NF_MASK     (3)    // 64bit 3
-#define ARCH_PSTATE_ZF_MASK     (2)    // 64bit 2
-#define ARCH_PSTATE_CF_MASK     (1)    // 64bit 1
-#define ARCH_PSTATE_VF_MASK     (0)    // 64bit 0
-#define ARMFLEX_TOT_REGS        (35)
 
 static inline void makeEvictRequest(int asid, uint64_t vp, MessageFPGA *evict_request)
 {
@@ -202,3 +209,5 @@ static inline void makeMissReply(int perm, int thid, int asid, uint64_t va, uint
     miss_reply->MissReply.permission = perm;
     miss_reply->MissReply.ppn = GET_PPN_FROM_PADDR(paddr);
 }
+
+#endif

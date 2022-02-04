@@ -129,7 +129,7 @@ void *devteroflex_pack_protobuf(DevteroflexArchState *devteroflex, size_t *size)
     memcpy(state.xregs, devteroflex->xregs, sizeof(uint64_t) * 32);
     state.pc = devteroflex->pc;
     state.sp = devteroflex->sp;
-    state.nzcv = devteroflex->nzcv;
+    state.nzcv = devteroflex->flags;
 
     // protobuf struct -> protobuf stream
     size_t len = devteroflex_arch_state_p__get_packed_size (&state); // This is calculated packing length
@@ -162,7 +162,7 @@ void devteroflex_unpack_protobuf(DevteroflexArchState *devteroflex, void *stream
     memcpy(&devteroflex->xregs, &state->xregs, sizeof(uint64_t) * 32);
     devteroflex->pc = state->pc;
     devteroflex->sp = state->sp;
-    devteroflex->nzcv = state->nzcv;
+    devteroflex->flags = state->nzcv;
 
     // Free protobuf struct
     devteroflex_arch_state_p__free_unpacked(state, NULL); // Free the message from unpack()
@@ -217,7 +217,7 @@ void devteroflex_trace_protobuf_pack(CommitTrace *trace,
     memcpy(stateP->xregs, state->xregs, sizeof(uint64_t) * stateP->n_xregs);
     stateP->pc = state->pc;
     stateP->sp = state->sp;
-    stateP->nzcv = state->nzcv;
+    stateP->nzcv = state->flags;
 
     memcpy(traceP->inst_block_data.data, &(trace->inst_block_data), CACHE_BLOCK_SIZE);
     for (int i = 0; i < traceP->n_mem_block_data; i++) {

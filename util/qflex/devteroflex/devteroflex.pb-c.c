@@ -97,6 +97,57 @@ void   devteroflex_commit_trace_p__free_unpacked
   assert(message->base.descriptor == &devteroflex_commit_trace_p__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
+void   devteroflex_debug_log_item_p__updated_register__init
+                     (DevteroflexDebugLogItemP__UpdatedRegister         *message)
+{
+  static const DevteroflexDebugLogItemP__UpdatedRegister init_value = DEVTEROFLEX_DEBUG_LOG_ITEM_P__UPDATED_REGISTER__INIT;
+  *message = init_value;
+}
+void   devteroflex_debug_log_item_p__init
+                     (DevteroflexDebugLogItemP         *message)
+{
+  static const DevteroflexDebugLogItemP init_value = DEVTEROFLEX_DEBUG_LOG_ITEM_P__INIT;
+  *message = init_value;
+}
+size_t devteroflex_debug_log_item_p__get_packed_size
+                     (const DevteroflexDebugLogItemP *message)
+{
+  assert(message->base.descriptor == &devteroflex_debug_log_item_p__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t devteroflex_debug_log_item_p__pack
+                     (const DevteroflexDebugLogItemP *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &devteroflex_debug_log_item_p__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t devteroflex_debug_log_item_p__pack_to_buffer
+                     (const DevteroflexDebugLogItemP *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &devteroflex_debug_log_item_p__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+DevteroflexDebugLogItemP *
+       devteroflex_debug_log_item_p__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (DevteroflexDebugLogItemP *)
+     protobuf_c_message_unpack (&devteroflex_debug_log_item_p__descriptor,
+                                allocator, len, data);
+}
+void   devteroflex_debug_log_item_p__free_unpacked
+                     (DevteroflexDebugLogItemP *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &devteroflex_debug_log_item_p__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
 static const ProtobufCFieldDescriptor devteroflex_arch_state_p__field_descriptors[4] =
 {
   {
@@ -275,5 +326,120 @@ const ProtobufCMessageDescriptor devteroflex_commit_trace_p__descriptor =
   devteroflex_commit_trace_p__field_indices_by_name,
   1,  devteroflex_commit_trace_p__number_ranges,
   (ProtobufCMessageInit) devteroflex_commit_trace_p__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor devteroflex_debug_log_item_p__updated_register__field_descriptors[2] =
+{
+  {
+    "id",
+    1,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_UINT32,
+    0,   /* quantifier_offset */
+    offsetof(DevteroflexDebugLogItemP__UpdatedRegister, id),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value",
+    2,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_UINT64,
+    0,   /* quantifier_offset */
+    offsetof(DevteroflexDebugLogItemP__UpdatedRegister, value),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned devteroflex_debug_log_item_p__updated_register__field_indices_by_name[] = {
+  0,   /* field[0] = id */
+  1,   /* field[1] = value */
+};
+static const ProtobufCIntRange devteroflex_debug_log_item_p__updated_register__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 2 }
+};
+const ProtobufCMessageDescriptor devteroflex_debug_log_item_p__updated_register__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "DevteroflexDebugLogItem_p.UpdatedRegister",
+  "UpdatedRegister",
+  "DevteroflexDebugLogItemP__UpdatedRegister",
+  "",
+  sizeof(DevteroflexDebugLogItemP__UpdatedRegister),
+  2,
+  devteroflex_debug_log_item_p__updated_register__field_descriptors,
+  devteroflex_debug_log_item_p__updated_register__field_indices_by_name,
+  1,  devteroflex_debug_log_item_p__updated_register__number_ranges,
+  (ProtobufCMessageInit) devteroflex_debug_log_item_p__updated_register__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor devteroflex_debug_log_item_p__field_descriptors[3] =
+{
+  {
+    "pc",
+    1,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_UINT64,
+    0,   /* quantifier_offset */
+    offsetof(DevteroflexDebugLogItemP, pc),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "instruction",
+    2,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_UINT32,
+    0,   /* quantifier_offset */
+    offsetof(DevteroflexDebugLogItemP, instruction),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "updates",
+    3,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(DevteroflexDebugLogItemP, n_updates),
+    offsetof(DevteroflexDebugLogItemP, updates),
+    &devteroflex_debug_log_item_p__updated_register__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned devteroflex_debug_log_item_p__field_indices_by_name[] = {
+  1,   /* field[1] = instruction */
+  0,   /* field[0] = pc */
+  2,   /* field[2] = updates */
+};
+static const ProtobufCIntRange devteroflex_debug_log_item_p__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 3 }
+};
+const ProtobufCMessageDescriptor devteroflex_debug_log_item_p__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "DevteroflexDebugLogItem_p",
+  "DevteroflexDebugLogItemP",
+  "DevteroflexDebugLogItemP",
+  "",
+  sizeof(DevteroflexDebugLogItemP),
+  3,
+  devteroflex_debug_log_item_p__field_descriptors,
+  devteroflex_debug_log_item_p__field_indices_by_name,
+  1,  devteroflex_debug_log_item_p__number_ranges,
+  (ProtobufCMessageInit) devteroflex_debug_log_item_p__init,
   NULL,NULL,NULL    /* reserved[123] */
 };

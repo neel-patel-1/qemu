@@ -16,14 +16,14 @@ void devteroflex_pack_archstate(DevteroflexArchState *devteroflex, CPUState *cpu
 
     memcpy(&devteroflex->xregs,     &env->xregs, 32*sizeof(uint64_t));
     devteroflex->pc = env->pc;
-    devteroflex->sp = env->sp_el[QFLEX_GET_ARCH(el)(cpu)];
+    devteroflex->sp = 0;
 
     uint64_t nzcv =
         ((env->CF)           ? 1 << ARCH_PSTATE_CF_MASK : 0) |
         ((env->VF & (1<<31)) ? 1 << ARCH_PSTATE_VF_MASK : 0) |
         ((env->NF & (1<<31)) ? 1 << ARCH_PSTATE_NF_MASK : 0) |
         (!(env->ZF)          ? 1 << ARCH_PSTATE_ZF_MASK : 0);
-    devteroflex->nzcv = nzcv;
+    devteroflex->flags = nzcv;
 }
 
 void devteroflex_unpack_archstate(CPUState *cpu, DevteroflexArchState *devteroflex) {
@@ -33,11 +33,39 @@ void devteroflex_unpack_archstate(CPUState *cpu, DevteroflexArchState *devterofl
     env->pc = devteroflex->pc;
     env->sp_el[QFLEX_GET_ARCH(el)(cpu)] = devteroflex->sp;
 
-    uint32_t nzcv = devteroflex->nzcv;
+    uint32_t nzcv = devteroflex->flags;
     env->CF = (nzcv & ARCH_PSTATE_CF_MASK) ? 1 : 0;
     env->VF = (nzcv & ARCH_PSTATE_VF_MASK) ? (1 << 31) : 0;
     env->NF = (nzcv & ARCH_PSTATE_NF_MASK) ? (1 << 31) : 0;
     env->ZF = !(nzcv & ARCH_PSTATE_ZF_MASK) ? 1 : 0;
+}
+
+bool devteroflex_compare_archstate(const CPUState *cpu, DevteroflexArchState *devteroflex) {
+    const CPUARMState *env = cpu->env_ptr;
+
+    for(int i = 0; i < 32; ++i) {
+        if(env->xregs[i] != devteroflex->xregs[i]) {
+            qemu_log(
+                "Mismatched register %d is detected. \n QEMU: %lx, FPGA: %lx \n", 
+                i, 
+                env->xregs[i],
+                devteroflex->xregs[i]
+            );
+            return true;
+        }
+    }
+
+    if(env->pc != devteroflex->pc) {
+        qemu_log(
+            "Mismatched register PC is detected. \n QEMU: %lx, FPGA: %lx \n", 
+            env->pc,
+            devteroflex->pc
+        );
+        return true;
+    }
+    // we didn't compare the NZCV now.
+
+    return false;
 }
 
 /** devteroflex_example_instrumentation
