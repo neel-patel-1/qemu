@@ -41,10 +41,14 @@ static void run_transplant(CPUState *cpu, uint32_t thread) {
 
     // In debug mode, we should advance the QEMU by one step and do comparison.
     if(devteroflexConfig.is_debug) {
-        if(devteroflex_is_running()) {
-            qflex_singlestep(cpu);
-        }
-        // It's possible that QEMU enters the system mode.
+        // DEBUG
+        if (FLAGS_GET_IS_EXCEPTION(state.flags) | FLAGS_GET_IS_UNDEF(state.flags)) {
+            // Singlestep like normal execution
+            goto base_execution;
+        } 
+        // Singlestep and compare
+        qflex_singlestep(cpu);
+        // continue until supervised instructions are runned.
         while(QFLEX_GET_ARCH(el)(cpu) != 0){
             qflex_singlestep(cpu);
         }
@@ -53,39 +57,34 @@ static void run_transplant(CPUState *cpu, uint32_t thread) {
             qemu_log("Warning: An architecture state mismatch has been detected. Quitting QEMU now. \n");
             abort();
         }
-    } else {
-        // the state is moved back.
-        devteroflex_unpack_archstate(cpu, &state);
-    }
-
-    // in case it's an exception or page fault.
-    if(FLAGS_GET_IS_EXCEPTION(state.flags) | FLAGS_GET_IS_UNDEF(state.flags)) {
-        if(devteroflex_is_running()) {
-            // Execute the exception instruction
-            qflex_singlestep(cpu);
-            // continue until supervised instructions are runned.
-            while(QFLEX_GET_ARCH(el)(cpu) != 0){
-                qflex_singlestep(cpu);
-            }
-
-            // handle exception will change the state, so it
-            if(devteroflex_is_running()) {
-                cpu_push_fpga(cpu->cpu_index);
-                ipt_register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
-                devteroflex_pack_archstate(&state, cpu);
-
-                registerAndPushState(&c, thread, QFLEX_GET_ARCH(asid)(cpu), &state);
-                if(devteroflexConfig.is_debug) {
-                    transplant_stopCPU(&c, thread);
-                }
-                transplant_start(&c, thread);
-            }
-        }
-    } else { // It's a single step mode.
         if(devteroflex_is_running()) {
             cpu_push_fpga(cpu->cpu_index);
             transplant_singlestep(&c, thread, QFLEX_GET_ARCH(asid)(cpu), &state);
         }
+        // End of debug mode
+        return;
+    }
+
+    devteroflex_unpack_archstate(cpu, &state);
+base_execution:
+    // Execute the exception instruction
+    qflex_singlestep(cpu);
+    // continue until supervised instructions are runned.
+    while(QFLEX_GET_ARCH(el)(cpu) != 0){
+        qflex_singlestep(cpu);
+    }
+
+    // handle exception will change the state, so it
+    if(devteroflex_is_running()) {
+        cpu_push_fpga(cpu->cpu_index);
+        ipt_register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
+        devteroflex_pack_archstate(&state, cpu);
+
+        registerAndPushState(&c, thread, QFLEX_GET_ARCH(asid)(cpu), &state);
+        if(devteroflexConfig.is_debug) {
+            transplant_stopCPU(&c, thread);
+        }
+        transplant_start(&c, thread);
     }
 }
 
