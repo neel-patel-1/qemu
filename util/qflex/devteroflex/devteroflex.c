@@ -33,6 +33,9 @@ static uint32_t running_cpus;
 #define cpu_push_fpga(cpu) (running_cpus |= 1 << cpu)
 #define cpu_pull_fpga(cpu) (running_cpus &= ~(1 << cpu))
 
+// Close result comparison for some cores when they run transplant.
+static bool disable_cpu_comparison = false;
+
 static void run_transplant(CPUState *cpu, uint32_t thread) {
     assert(cpu->cpu_index == thread);
     assert(cpu_in_fpga(thread));
@@ -68,6 +71,7 @@ static void run_transplant(CPUState *cpu, uint32_t thread) {
 
     devteroflex_unpack_archstate(cpu, &state);
 base_execution:
+    disable_cpu_comparison = true;
     // Execute the exception instruction
     qflex_singlestep(cpu);
     // continue until supervised instructions are runned.
@@ -87,6 +91,8 @@ base_execution:
         }
         transplant_start(&c, thread);
     }
+
+    disable_cpu_comparison = false;
 }
 
 static void transplants_run(uint32_t pending) {
@@ -183,7 +189,7 @@ static void handle_evict_writeback(MessageFPGA * message) {
 
     uint64_t hvp = tpt_lookup(ipt_bits);
  
-    if(devteroflexConfig.is_debug) {
+    if(devteroflexConfig.is_debug && !disable_cpu_comparison) {
         uint8_t page_buffer[4096];
         fetchPageFromFPGA(&c, ppn, (void *)&page_buffer);
         // compare the page with QEMU
