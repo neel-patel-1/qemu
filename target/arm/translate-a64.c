@@ -2454,7 +2454,7 @@ static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
     MemOp memop = s->be_data;
 
     g_assert(size <= 3);
-
+    
     if (is_pair) {
         g_assert(size >= 2);
         if (size == 2) {
@@ -2561,12 +2561,11 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     gen_set_label(fail_label);
     tcg_gen_movi_i64(cpu_reg(s, rd), 1);
     gen_set_label(done_label);
-    tcg_gen_movi_i64(cpu_exclusive_addr, -1);
-
 
     GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
 					 cpu_env, cpu_exclusive_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(is_pair)));
 
+    tcg_gen_movi_i64(cpu_exclusive_addr, -1);
 }
 
 static void gen_compare_and_swap(DisasContext *s, int rs, int rt,
@@ -2763,8 +2762,7 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
         clean_addr = gen_mte_check1(s, cpu_reg_sp(s, rn),
                                     false, rn != 31, size);
         s->is_ldex = true;
-        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
-					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
+        
         gen_load_exclusive(s, rt, rt2, clean_addr, size, false);
         GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
 					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
