@@ -2510,6 +2510,9 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
 
     tcg_gen_brcond_i64(TCG_COND_NE, addr, cpu_exclusive_addr, fail_label);
 
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, cpu_exclusive_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(is_pair)));
+
     tmp = tcg_temp_new_i64();
     if (is_pair) {
         if (size == 2) {
@@ -2559,6 +2562,11 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     tcg_gen_movi_i64(cpu_reg(s, rd), 1);
     gen_set_label(done_label);
     tcg_gen_movi_i64(cpu_exclusive_addr, -1);
+
+
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, cpu_exclusive_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(is_pair)));
+
 }
 
 static void gen_compare_and_swap(DisasContext *s, int rs, int rt,
@@ -2744,11 +2752,7 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
         }
         clean_addr = gen_mte_check1(s, cpu_reg_sp(s, rn),
                                     true, rn != 31, size);
-        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
-					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
         gen_store_exclusive(s, rs, rt, rt2, clean_addr, size, false);
-        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
-					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
         return;
 
     case 0x4: /* LDXR */
@@ -2823,11 +2827,7 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
             }
             clean_addr = gen_mte_check1(s, cpu_reg_sp(s, rn),
                                         true, rn != 31, size);
-            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
-					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(true)));
             gen_store_exclusive(s, rs, rt, rt2, clean_addr, size, true);
-            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
-					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(true)));
             return;
         }
         if (rt2 == 31
