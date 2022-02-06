@@ -121,12 +121,14 @@ void HELPER(qflex_magic_inst)(CPUARMState *env, uint64_t nop_op) {
 }
 
 /**
- * @brief HELPER(qflex_mem_trace)
+ * @brief HELPER(qflex_pre_mem)
  * Helper gets executed before a LD/ST
  */
-void HELPER(qflex_mem_trace)(CPUARMState* env, uint64_t addr, uint64_t type) {
+void HELPER(qflex_pre_mem)(CPUARMState* env, uint64_t addr, uint32_t type, uint32_t size, uint32_t is_pair) {
     CPUState *cs = CPU(env_archcpu(env));
-    qflex_log_mask(QFLEX_LOG_LDST, "[MEM]CPU%u:%"PRIu64":0x%016"PRIx64"\n", cs->cpu_index, type, addr);
+    qflex_log_mask(QFLEX_LOG_LDST, "[MEM]CPU%u:%u:0x%016"PRIx64"\n", cs->cpu_index, type, addr);
+
+    assert(size <= 8 && "We never expect a load / store whose operand size is larger than 64bit. \n");
     
     int inst;
     if(qflex_mem_trace_gen_trace()) {
@@ -162,6 +164,13 @@ void HELPER(qflex_mem_trace)(CPUARMState* env, uint64_t addr, uint64_t type) {
         // In debug mode, we only sync page after the operation is done.
         if(type != MMU_INST_FETCH) {
             devteroflex_synchronize_page(cs, addr, type);
+            if(is_pair) {
+                uint64_t current_vpn = addr & ~PAGE_MASK;
+                uint64_t next_vpn = (addr + size) & ~PAGE_MASK;
+                if(next_vpn != current_vpn) {
+                    devteroflex_synchronize_page(cs, addr + size, type);
+                }
+            }
         }
     }
 
@@ -178,19 +187,21 @@ void HELPER(qflex_mem_trace)(CPUARMState* env, uint64_t addr, uint64_t type) {
 /**
  * @brief the helper executed after a memory operation is done.
  */
-void HELPER(qflex_post_mem)(CPUARMState* env, uint64_t addr, uint32_t type, uint32_t size, uint32_t is_last_operation){
+void HELPER(qflex_post_mem)(CPUARMState* env, uint64_t addr, uint32_t type, uint32_t size, uint32_t is_pair){
 #ifdef CONFIG_DEVTEROFLEX
     if(devteroflex_is_enabled() && devteroflexConfig.is_debug) {
         if(type == MMU_DATA_STORE) {
             // here the page checking will be done.
             // it will evicted related pages.
-            if(is_last_operation) {
-                // always check the last operation.
-                devteroflex_synchronize_page(CPU(env_archcpu(env)), addr, type);
-            } else {
-                // is the element the last one in the page? If so, we will check it.
-                if((addr & 0xFFF) == (4096 - size)) {
-                    devteroflex_synchronize_page(CPU(env_archcpu(env)), addr, type);
+            qemu_log("Checking store: \n Target Addr: %lx, Size: %d \n", addr, size);
+            devteroflex_synchronize_page(CPU(env_archcpu(env)), addr, type);
+
+            if(is_pair) {
+                uint64_t current_vpn = addr & ~PAGE_MASK;
+                uint64_t next_vpn = (addr + size) & ~PAGE_MASK;
+                if(next_vpn != current_vpn) {
+                    qemu_log("Checking store (cross page): \n Target Addr: %lx, Size: %d \n", addr, size);
+                    devteroflex_synchronize_page(CPU(env_archcpu(env)), addr + size, type);
                 }
             }
         }

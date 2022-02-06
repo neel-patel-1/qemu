@@ -44,6 +44,7 @@ static void run_transplant(CPUState *cpu, uint32_t thread) {
         // DEBUG
         if (FLAGS_GET_IS_EXCEPTION(state.flags) | FLAGS_GET_IS_UNDEF(state.flags)) {
             // Singlestep like normal execution
+            // TODO: Replace the goto with some functional call / debug mode.
             goto base_execution;
         } 
         // Singlestep and compare
@@ -189,8 +190,19 @@ static void handle_evict_writeback(MessageFPGA * message) {
         uint8_t *page_in_qemu = (uint8_t *)hvp;
         for (int i = 0; i < 4096; ++i) {
             if(page_in_qemu[i] != page_buffer[i]){
-                // Dangerous!
-                qemu_log("Page mismatching is detected.\n VA: %lx, ASID: %x, PERM: %lu \n", gvp, asid, perm);                
+                // Mismatch is detected.
+                qemu_log("Page mismatching is detected.\n VA: %lx, ASID: %x, PERM: %lu \n", gvp, asid, perm);
+
+                // Comparison of the page.
+                qemu_log("Bias \t QEMU \t FPGA \n");
+                for(int j = 0; j < 4096; ++j){
+                    if(page_in_qemu[j] != page_buffer[j]) {
+                        qemu_log("%d* \t %x \t %x \n", j, page_in_qemu[j], page_buffer[j]);
+                    } else {
+                        qemu_log("%d \t %x \t %x \n", j, page_in_qemu[j], page_buffer[j]);
+                    }
+                    
+                }
                 abort();
             }
         }
