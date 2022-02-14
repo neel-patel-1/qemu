@@ -89,6 +89,7 @@ bool page_fault_pending_run(uint64_t hvp) {
             hvp == pendingRequests.hvp[i]) {
             has_pending = true;
             pendingRequests.bitmap &= ~mask;
+            qemu_log("DevteroFlex:MMU:PA[0x%016lx]:SYNONYM PENDING\n", hvp);
             tpt_add_entry(pendingRequests.ipt_bits[i], pendingRequests.hvp[i]);
             page_fault_return(pendingRequests.ipt_bits[i], pendingRequests.hvp[i], pendingRequests.thid[i]);
         }

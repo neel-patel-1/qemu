@@ -36,41 +36,52 @@ static uint32_t running_cpus;
 // Close result comparison for some cores when they run transplant.
 static bool disable_cpu_comparison = false;
 
+
+static bool run_debug(CPUState *cpu) {
+    if (FLAGS_GET_IS_EXCEPTION(state.flags) | FLAGS_GET_IS_UNDEF(state.flags)) {
+        // Singlestep like normal execution
+        return false;
+    } 
+    qemu_log("DevteroFlex:CPU[%i]:Running debug check\n", cpu->cpu_index);
+    // Singlestep and compare
+    qflex_singlestep(cpu);
+    // continue until supervised instructions are runned.
+    while(QFLEX_GET_ARCH(el)(cpu) != 0){
+        qflex_singlestep(cpu);
+    }
+    if(devteroflex_compare_archstate(cpu, &state)) {
+        // Dangerous!!!
+        qemu_log("WARNING:DevteroFlex:CPU[%i]:An architecture state mismatch has been detected. Quitting QEMU now. \n", cpu->cpu_index);
+        abort();
+    }
+    if(devteroflex_is_running()) {
+        cpu_push_fpga(cpu->cpu_index);
+        transplant_singlestep(&c, cpu->cpu_index, QFLEX_GET_ARCH(asid)(cpu), &state);
+    }
+    // End of debug mode
+    return true;
+}
+
 static void run_transplant(CPUState *cpu, uint32_t thread) {
     assert(cpu->cpu_index == thread);
     assert(cpu_in_fpga(thread));
     cpu_pull_fpga(cpu->cpu_index);
     transplant_getState(&c, thread, (uint64_t *) &state);
 
+    qemu_log("DevteroFlex:CPU[%i]:PC[0x%016lx]:transplant:EXCP[%i]:UNDEF:[%i]\n", thread, state.pc,
+             FLAGS_GET_IS_EXCEPTION(state.flags)?1:0, FLAGS_GET_IS_UNDEF(state.flags)?1:0);
+ 
     // In debug mode, we should advance the QEMU by one step and do comparison.
     if(devteroflexConfig.is_debug) {
-        // DEBUG
-        if (FLAGS_GET_IS_EXCEPTION(state.flags) | FLAGS_GET_IS_UNDEF(state.flags)) {
-            // Singlestep like normal execution
-            // TODO: Replace the goto with some functional call / debug mode.
-            goto base_execution;
-        } 
-        // Singlestep and compare
-        qflex_singlestep(cpu);
-        // continue until supervised instructions are runned.
-        while(QFLEX_GET_ARCH(el)(cpu) != 0){
-            qflex_singlestep(cpu);
+        if(run_debug(cpu)) {
+            // Succesfully ran the debug routine
+            return; 
         }
-        if(devteroflex_compare_archstate(cpu, &state)) {
-            // Dangerous!!!
-            qemu_log("Warning: An architecture state mismatch has been detected. Quitting QEMU now. \n");
-            abort();
-        }
-        if(devteroflex_is_running()) {
-            cpu_push_fpga(cpu->cpu_index);
-            transplant_singlestep(&c, thread, QFLEX_GET_ARCH(asid)(cpu), &state);
-        }
-        // End of debug mode
-        return;
+        // Need to run normal transplant
+    } else {
+        devteroflex_unpack_archstate(cpu, &state);
     }
 
-    devteroflex_unpack_archstate(cpu, &state);
-base_execution:
     disable_cpu_comparison = true;
     // Execute the exception instruction
     qflex_singlestep(cpu);
@@ -87,6 +98,7 @@ base_execution:
 
         registerAndPushState(&c, thread, QFLEX_GET_ARCH(asid)(cpu), &state);
         if(devteroflexConfig.is_debug) {
+            // Ensure single instruction gets executed
             transplant_stopCPU(&c, thread);
         }
         transplant_start(&c, thread);
@@ -106,14 +118,25 @@ static void transplants_run(uint32_t pending) {
     }
 }
 
+static void transplant_bringBack(uint32_t pending) {
+    CPUState *cpu;
+    CPU_FOREACH(cpu)
+    {
+        if(pending & (1 << cpu->cpu_index)) {
+            qemu_log("DevteroFlex:CPU[%i]:Final Transplant FPGA->HOST\n", cpu->cpu_index);
+            transplant_getState(&c, cpu->cpu_index, (uint64_t *) &state);
+            devteroflex_unpack_archstate(cpu, &state);
+            cpu_pull_fpga(cpu->cpu_index);
+        }
+    }
+}
+
 static void transplant_push_all_cpus(void) {
     CPUState *cpu;
     CPU_FOREACH(cpu) {
         cpu_push_fpga(cpu->cpu_index);
         ipt_register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
         devteroflex_pack_archstate(&state, cpu);
-        // registerThreadWithProcess(&c, cpu->cpu_index, QFLEX_GET_ARCH(asid)(cpu));
-        // transplant_pushState(&c, cpu->cpu_index, (uint64_t *)&state);
         registerAndPushState(&c, cpu->cpu_index, QFLEX_GET_ARCH(asid)(cpu), &state);
 
         if(devteroflexConfig.is_debug) {
@@ -121,19 +144,6 @@ static void transplant_push_all_cpus(void) {
         }
 
         transplant_start(&c, cpu->cpu_index);
-    }
-}
-
-static void transplant_pull_all_cpus(void) {
-    CPUState *cpu;
-    CPU_FOREACH(cpu) {
-        // transplant_stop(c) // TODO: Enable mechanism to stop execution in the FPGA and request state back
-        if(!cpu_in_fpga(cpu->cpu_index)) {
-            qemu_log("DevteroFlex: WARNING: Forcing transplants back doesn't stop execution yet.\n");
-            cpu_pull_fpga(cpu->cpu_index);
-            transplant_getState(&c, cpu->cpu_index, (uint64_t *) &state);
-            devteroflex_unpack_archstate(cpu, &state);
-        }
     }
 }
 
@@ -148,69 +158,38 @@ static bool handle_evict_notify(MessageFPGA *message) {
     // bool modified = message->EvictNotif.modified;
 
     uint64_t ipt_bits = IPT_COMPRESS(gva, asid, perm);
-
-    /* TODO: Correct hvp->gva translation with no CPU
-     * We can hack it for synchronized pages by passing the CPU index from QEMU to the FPGA
-     */ 
-    // uint64_t hvp = page_table_get_hvp(ipt_bits, perm);
-    // uint64_t hvp = gva_to_hva(qemu_get_cpu(0), gva, perm);
-    // assert(hvp != -1);
-
-    // assert(g_hash_table_lookup(tpt, &ipt_bits) != NULL);
-
     uint64_t hvp = tpt_lookup(ipt_bits);
 
-    // if(modified) {
-    //     // Wait for EvictDone, eviction underprogress
-    //     return false;
-    // } else {
-    //     // Evict entry directly as there wont be any future evict message
-    //     ipt_evict(hvp, ipt_bits);
-    //     tpt_remove_entry(ipt_bits);
-    //     fpga_paddr_push(ppn);
-    //     return true;
-    // }
+    qemu_log("DevteroFlex:MMU:ASID[%i]:VA[0x%016lx]:PERM[%lu]:EVICT\n", asid, gva, perm);
     evict_notify_pending_add(ipt_bits, hvp);
     return false;
 }
 
+static uint8_t page_buffer[PAGE_SIZE];
 static void handle_evict_writeback(MessageFPGA * message) {
     uint64_t gvp = message->vpn << 12;
     uint64_t perm = message->EvictNotif.permission;
     uint32_t asid = message->asid;
     uint64_t ppn = message->EvictNotif.ppn << 12;
-    // if(!message->EvictNotif.modified) return;
 
     uint64_t ipt_bits = IPT_COMPRESS(gvp, asid, perm);
 
-    // uint64_t hvp = page_table_get_hvp(ipt_bits, perm); // TODO
-    // uint64_t hvp = gva_to_hva(qemu_get_cpu(0), gvp, perm);
-    // assert(hvp != -1);
-
     uint64_t hvp = tpt_lookup(ipt_bits);
  
+    qemu_log("DevteroFlex:MMU:ASID[%i]:VA[0x%016lx]:PERM[%lu]:WRITE BACK\n", asid, gvp, perm);
     if(devteroflexConfig.is_debug && !disable_cpu_comparison) {
-        uint8_t page_buffer[4096];
+        // Compare DevteroFlex modified page with QEMU
         fetchPageFromFPGA(&c, ppn, (void *)&page_buffer);
-        // compare the page with QEMU
         uint8_t *page_in_qemu = (uint8_t *)hvp;
-        for (int i = 0; i < 4096; ++i) {
+        bool mismatched = false;
+        for (int i = 0; i < PAGE_SIZE; ++i) {
             if(page_in_qemu[i] != page_buffer[i]){
-                // Mismatch is detected.
-                qemu_log("Page mismatching is detected.\n VA: %lx, ASID: %x, PERM: %lu \n", gvp, asid, perm);
-
-                // Comparison of the page.
-                qemu_log("Bias \t QEMU \t FPGA \n");
-                for(int j = 0; j < 4096; ++j){
-                    if(page_in_qemu[j] != page_buffer[j]) {
-                        qemu_log("%d* \t %x \t %x \n", j, page_in_qemu[j], page_buffer[j]);
-                    } else {
-                        qemu_log("%d \t %x \t %x \n", j, page_in_qemu[j], page_buffer[j]);
-                    }
-                    
-                }
-                abort();
+                qemu_log("BYTE[%d]:QEMU[%x] =/= FPGA[%x] \n", i, page_in_qemu[i], page_buffer[i]);
             }
+        }
+        if(mismatched) {
+            qemu_log("ERROR:Page mismatch\n");
+            abort();
         }
     } else {
         fetchPageFromFPGA(&c, ppn, (void *) hvp);
@@ -242,16 +221,16 @@ static void handle_page_fault(MessageFPGA *message) {
         hvp = gva_to_hva(cpu, gvp, perm);
     }
     uint64_t ipt_bits = IPT_COMPRESS(gvp, asid, perm);
-    qemu_log("DevteroFlex:PAGE_FAULT:thid[%i]:asid[%"PRIx32"]:addr[0x%"PRIx64"]\n", thid, asid, gvp);
+    qemu_log("DevteroFlex:MMU:CPU[%i]:ASID[%i]:VA[0x%016lx]:PERM[%lu]:PAGE FAULT\n", thid, asid, gvp, perm);
     if(hvp == -1) {
-        qemu_log("   ---- page fault translation miss, run instruction.\n");
+        qemu_log("   ---- PAGE FAULT translation miss, request transplant\n");
         transplant_forceTransplant(&c, thid);
         return;
     }
 
     if(page_fault_pending_eviction_has_hvp(hvp)) {
         // FPGA is evicting that hvp, wait till completed before handling the page
-        qemu_log("DevteroFlex: Page Fault address matched currently evicting phyisical page.\n");
+        qemu_log("   ---- PAGE FAULT SYNONYM: Address matched pending evicted physical page, wait for synonym to complete writeback\n");
         page_fault_pending_add(ipt_bits, hvp, thid);
     } else {
         // now this page is pushed to the FPGA, we also put the mapping in the tpt.
@@ -300,6 +279,7 @@ void page_fault_return(uint64_t ipt_bits, uint64_t hvp, uint32_t thid) {
     uint32_t perm = IPT_GET_PERM(ipt_bits);
     uint64_t ppa = -1; // physical page address
     bool pushPage = insert_entry_get_ppn(hvp, ipt_bits, &ppa);
+    qemu_log("DevteroFlex:MMU:ASID[%lu]:GVA[0x%016lx]:HVA[0x%016lx]:PERM[%u]:PAGE FAULT RESPONSE\n", asid, gvpa, hvp, perm);
     if(pushPage) {
         // No synonym
         pushPageToFPGA(&c, ppa, (void*) hvp);
@@ -314,6 +294,7 @@ void page_eviction_request(uint64_t ipt_bits) {
     uint64_t gvp = IPT_GET_VA(ipt_bits);
     uint64_t asid = IPT_GET_ASID(ipt_bits);
 
+    qemu_log("DevteroFlex:MMU:ASID[%lu]:VA[0x%016lx]:PAGE FORCE EVICTION\n", asid, gvp);
     MessageFPGA evictRequest;
     makeEvictRequest(asid, gvp, &evictRequest);
     sendMessageToFPGA(&c, &evictRequest, sizeof(MessageFPGA));
@@ -372,30 +353,40 @@ static int devteroflex_execution_flow(void) {
     MessageFPGA msg;
     uint32_t pending;
     CPUState *cpu;
-    CPU_FOREACH(cpu) { }
     transplant_push_all_cpus();
     while(1) {
-       // Check and run all pending transplants
-       if(transplants_has_pending(&pending)) {
-           transplants_run(pending);
-       }
-       // Run all pending messages from a synchronization
-       if(message_buffer_curr_entry > 0) {
-           for(int message_idx = 0; message_idx < message_buffer_curr_entry; message_idx++) {
-               message_run(message_buffer[message_idx]);
-           }
-           message_buffer_curr_entry = 0;
-       }
-       // Check and run all pending messages
-       while(message_has_pending(&msg)) {
-           message_run(msg);
-       }
+        // Check and run all pending transplants
+        if(transplants_has_pending(&pending)) {
+            if(devteroflex_is_running()) {
+                transplants_run(pending);
+            } else {
+                transplant_bringBack(pending);
+            }
+        }
+        // Run all pending messages from a synchronization
+        if(message_buffer_curr_entry > 0) {
+            for(int message_idx = 0; message_idx < message_buffer_curr_entry; message_idx++) {
+                message_run(message_buffer[message_idx]);
+            }
+            message_buffer_curr_entry = 0;
+        }
+        // Check and run all pending messages
+        while(message_has_pending(&msg)) {
+            message_run(msg);
+        }
 
-       // If DevteroFlex stopped executing, pull all cpu's back
-       if(!devteroflex_is_running()) {
-           transplant_pull_all_cpus();
-           break;
-       }
+        // If DevteroFlex stopped executing, pull all cpu's back
+        if(!devteroflex_is_running()) {
+            CPU_FOREACH(cpu) {
+                if(!cpu_in_fpga(cpu->cpu_index)) {
+                    transplant_stopCPU(&c, cpu->cpu_index);
+                }
+            }
+        }
+        if(!devteroflex_is_running() && running_cpus == 0) {
+            // Done executing
+            break;
+        }
     }
 
     return 0;
