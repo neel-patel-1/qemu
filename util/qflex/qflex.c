@@ -35,6 +35,7 @@ QflexState_t qflexState = {
 int qflex_singlestep(CPUState *cpu) {
     int ret;
     qflex_update_exit_main_loop(false);
+    qemu_log("QFlex Singlestep: 0x%016lx\n", QFLEX_GET_ARCH(pc)(cpu));
     ret = qflex_cpu_step(cpu);
     if(ret) {
         // TODO How to handle this case?
