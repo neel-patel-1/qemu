@@ -444,5 +444,8 @@ void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, bool i
         ipt_init();
         // Initialize the temporal page table.
         tpt_init();
+
+        // In this case, the enable signal must be added.
+        assert(devteroflexConfig.enabled && "When the page size is specified, you must enable the devteroflex! by adding `enabled=on` to the command options.");
     }
 }
