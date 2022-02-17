@@ -37,11 +37,11 @@ extern DevteroflexConfig devteroflexConfig;
 void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, bool is_emulation);
 
 static inline void devteroflex_start(void) {
+    qflex_tb_flush();
     if(devteroflexConfig.enabled){
         devteroflexConfig.running = true;
         qemu_log("DEVTEROFLEX: Start detected.\n");
         qflex_update_exit_main_loop(true);
-        qflex_tb_flush();
     } else {
         qemu_log("Warning: Devteroflex is not enabled. The instruction is ignored. \n");
     }
