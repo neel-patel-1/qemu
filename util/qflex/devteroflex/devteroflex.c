@@ -406,9 +406,11 @@ static void devteroflex_prepare_singlestepping(void) {
 
 int devteroflex_singlestepping_flow(void) {
     qemu_log("DEVTEROFLEX: FPGA START\n");
+    qflexState.log_inst = true;
     devteroflex_prepare_singlestepping();
     devteroflex_execution_flow();
     qemu_log("DEVTEROFLEX: FPGA EXIT\n");
+    qflexState.log_inst = false;
     devteroflex_stop_full();
     return 0;
 }

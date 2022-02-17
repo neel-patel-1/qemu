@@ -4,6 +4,7 @@
 
 #include "qflex-helper.h"
 #include "qflex/qflex.h"
+#include "exec/log.h"
 
 /* qflex/qflex-arch.h
  */
@@ -46,6 +47,10 @@ uint64_t QFLEX_GET_ARCH(tid)(CPUState *cs) {
 int QFLEX_GET_ARCH(reg)(CPUState *cs, int reg_index) {
     assert(reg_index < 32);
     return ENV(cs)->xregs[reg_index];
+}
+
+void QFLEX_GET_ARCH(log_inst)(CPUState *cs) {
+    log_target_disas(cs, QFLEX_GET_ARCH(pc)(cs), 4);
 }
 
 uint64_t gva_to_hva(CPUState *cs, uint64_t addr, int access_type) {

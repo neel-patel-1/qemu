@@ -17,6 +17,7 @@ typedef struct QflexState_t {
     bool broke_loop;
     bool exit_main_loop;
     bool skip_interrupts;
+    bool log_inst;
 } QflexState_t;
 
 extern QflexState_t qflexState;

@@ -64,13 +64,9 @@ static inline void devteroflex_cmds(CPUState *cs, uint64_t nop_op) {
     switch(nop_op) {
         case DEVTEROFLEX_FLOW_START: 
             devteroflex_start(); 
-            qemu_loglevel |= CPU_LOG_TB_IN_ASM;
-            qemu_loglevel |= CPU_LOG_INT;
             break;
         case DEVTEROFLEX_FLOW_STOP: 
             devteroflex_stop(); 
-            qemu_loglevel &= ~CPU_LOG_TB_IN_ASM;
-            qemu_loglevel &= ~CPU_LOG_INT;
             break;
         default: break;
     }
