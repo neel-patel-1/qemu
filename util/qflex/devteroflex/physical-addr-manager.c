@@ -10,11 +10,14 @@ static uint64_t* paddr_buff = NULL;
 
 int fpga_paddr_init_manager(size_t tot_physical_pages, uint64_t data_base_addr) {
     assert(!paddr_buff);
-    paddr_buff = calloc(tot_physical_pages, PAGE_SIZE);
+    uint64_t actual_page_number = tot_physical_pages / 256 * 255; // 1/256 of the DRAM is given to the page table.
+
+    paddr_buff = calloc(actual_page_number, sizeof(uint64_t));
     if(!paddr_buff) { 
         return -1; 
     }
-    cbuf = circular_buf_init(paddr_buff, tot_physical_pages);
+
+    cbuf = circular_buf_init(paddr_buff, actual_page_number);
     for(int page = 0; page < tot_physical_pages; page++) {
         fpga_paddr_push(page * PAGE_SIZE + data_base_addr);
     }
