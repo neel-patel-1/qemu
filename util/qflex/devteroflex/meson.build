@@ -6,6 +6,7 @@ devteroflex_ss.add([files(
   'temporal-page-table.c',
   'physical-addr-manager.c',
   'verification.c',
+  'mmu.c',
   'custom-instrumentation.c',
   'devteroflex.c',
   'emulation-logger.c',

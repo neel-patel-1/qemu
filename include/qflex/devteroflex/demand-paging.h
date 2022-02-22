@@ -48,7 +48,7 @@ typedef enum PageTypes {
 
 /* Add entry to inverted page table, this is used to detect synonyms
  */
-int ipt_add_entry(uint64_t hvp, uint64_t ipt_bits);
+PageTypes ipt_add_entry(uint64_t hvp, uint64_t ipt_bits);
 /* Clear entry of inverted page table after bringing back the page from the FPGA
  */
 int ipt_evict(uint64_t hvp, uint64_t ipt_bits);
@@ -83,6 +83,25 @@ void tpt_remove_entry(uint64_t ipt_bits);
  * @note abort will be called in case no such an element is found in the table.
  */
 uint64_t tpt_lookup(uint64_t ipt_bits);
+
+/**
+ * @brief query the temporal table to see whether the index has a mapping.
+ * 
+ * @param ipt_bits the VA+ASID+Permission
+ * @return true if such an entry is in the ipt.
+ * 
+ */
+bool tpt_is_entry_exists(uint64_t ipt_bits);
+
+/**
+ * @brief get all available translations in the temporal page table.
+ * 
+ * @param count as result. the number of elements.
+ * @return a list of all the keys.
+ * 
+ * @note the caller has the right to release the result.
+ */
+uint64_t *tpt_all_keys(uint64_t *count);
 
 /**
  * @brief initilize the temporal page table.

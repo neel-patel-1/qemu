@@ -85,7 +85,7 @@ int ipt_evict(uint64_t hvp, uint64_t ipt_bits) {
     return 0;
 }
 
-int ipt_add_entry(uint64_t hvp, uint64_t ipt_bits) {
+PageTypes ipt_add_entry(uint64_t hvp, uint64_t ipt_bits) {
     GHashTable *set = g_hash_table_lookup(ipt, &hvp);
     if(set == NULL){
         // OK, so it's the first element.
