@@ -18,7 +18,7 @@ int fpga_paddr_init_manager(size_t tot_physical_pages, uint64_t data_base_addr) 
     }
 
     cbuf = circular_buf_init(paddr_buff, actual_page_number);
-    for(int page = 0; page < tot_physical_pages; page++) {
+    for(int page = 0; page < actual_page_number; page++) {
         fpga_paddr_push(page * PAGE_SIZE + data_base_addr);
     }
     return 0;
