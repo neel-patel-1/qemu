@@ -6,6 +6,8 @@
 #include "qflex/devteroflex/demand-paging.h"
 
 void devteroflex_mmu_flush_by_va_asid(uint64_t va, uint64_t asid) {
+  if(!devteroflex_is_enabled()) return;
+
   qemu_log("Flushing Devteroflex TLB: VA: %lx, ASID: %lx \n", va, asid);
   for(int i = 0; i < 3; ++i){
     uint64_t to_evicted = IPT_COMPRESS(va, asid, i);
@@ -20,6 +22,8 @@ void devteroflex_mmu_flush_by_va_asid(uint64_t va, uint64_t asid) {
 }
 
 void devteroflex_mmu_flush_by_asid(uint64_t asid) {
+  if(!devteroflex_is_enabled()) return;
+
   qemu_log("Flushing Devteroflex TLB: ASID: %lx \n", asid);
   // 1. get all entries in the tpt.
   uint64_t ele = 0;
@@ -63,6 +67,8 @@ void devteroflex_mmu_flush_by_asid(uint64_t asid) {
 }
 
 void devteroflex_mmu_flush_by_va(uint64_t va) {
+  if(!devteroflex_is_enabled()) return;
+
   qemu_log("Flushing Devteroflex TLB: VA: %lx \n", va);
   // 1. get all entries in the tpt.
   uint64_t ele = 0;
@@ -106,6 +112,8 @@ void devteroflex_mmu_flush_by_va(uint64_t va) {
 }
 
 void devteroflex_mmu_flush_by_hva_asid(uint64_t hva, uint64_t asid) {
+  if(!devteroflex_is_enabled()) return;
+
   // 1. query the IPT.
   uint64_t *ipt_synonyms;
   uint64_t ele = ipt_check_synonyms(hva, &ipt_synonyms);
@@ -149,6 +157,8 @@ void devteroflex_mmu_flush_by_hva_asid(uint64_t hva, uint64_t asid) {
 
 
 void devteroflex_mmu_flush_by_hva(uint64_t hva) {
+  if(!devteroflex_is_enabled()) return;
+
   // 1. query the IPT.
   uint64_t *ipt_synonyms;
   uint64_t ele = ipt_check_synonyms(hva, &ipt_synonyms);
@@ -168,6 +178,8 @@ void devteroflex_mmu_flush_by_hva(uint64_t hva) {
 
 
 void devteroflex_mmu_flush_all(void) {
+  if(!devteroflex_is_enabled()) return;
+
   qemu_log("Flushing Devteroflex TLB: ALL \n");
   // 1. get all entries in the tpt.
   uint64_t ele = 0;
