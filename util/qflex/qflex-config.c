@@ -7,7 +7,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/option_int.h"
 #include "qemu/config-file.h"
-#include "qemu-options.h"
+#include "qemu/qemu-options.h"
 #include "qemu/main-loop.h"
 
 #include "sysemu/tcg.h"
