@@ -1197,6 +1197,15 @@ if gnutls.found()
                      method: 'pkg-config',
                      kwargs: static_kwargs)
 endif
+qflex = not_found
+if 'CONFIG_QFLEX' in config_host
+  qflex = declare_dependency(link_args: config_host['LIBQFLEX_LIBS'].split())
+endif
+devteroflex = not_found
+if 'CONFIG_DEVTEROFLEX' in config_host
+  devteroflex = declare_dependency(link_args: config_host['LIBDEVTEROFLEX_LIBS'].split())
+endif
+
 keyutils = dependency('libkeyutils', required: false,
                       method: 'pkg-config', kwargs: static_kwargs)
 
@@ -3445,6 +3454,8 @@ summary_info += {'libudev':           libudev}
 # Dummy dependency, keep .found()
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
 summary_info += {'selinux':           selinux}
+summary_info += {'QFLEX':             config_host.has_key('CONFIG_QFLEX')}
+summary_info += {'DEVTEROFLEX':       config_host.has_key('CONFIG_DEVTEROFLEX')}
 summary(summary_info, bool_yn: true, section: 'Dependencies')
 
 if not supported_cpus.contains(cpu)

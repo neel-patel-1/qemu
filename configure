@@ -384,6 +384,12 @@ cfi="false"
 
 # 4. Detection partly done in configure
 xen=${default_feature:+disabled}
+######################
+# QFLEX
+qflex="no"
+# DEVTEROFLEX
+devteroflex="no"
+######################
 
 # parse CC options second
 for opt do
@@ -1197,6 +1203,21 @@ for opt do
   # everything else has the same name in configure and meson
   --enable-* | --disable-*) meson_option_parse "$opt" "$optarg"
   ;;
+######################
+# QFLEX
+######################
+  --disable-qflex) qflex="no"
+  ;;
+  --enable-qflex) qflex="yes"
+  ;;
+# DEVTEROFLEX
+  --disable-devteroflex) devteroflex="no"
+  ;;
+  --enable-devteroflex) 
+    qflex="yes"
+    devteroflex="yes"
+  ;;
+######################
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1471,6 +1492,12 @@ cat << EOF
   gio             libgio support
   slirp-smbd      use smbd (at path --smbd=*) in slirp networking
 
+######################
+# QFLEX
+  qflex           support for QFlex
+# DevteroFlex
+  devteroflex     support for DevteroFlex
+######################
 NOTE: The object files are built at the place where configure is launched
 EOF
 exit 0
@@ -3302,6 +3329,19 @@ if test "$have_ubsan" = "yes"; then
 fi
 
 ##########################################
+# QFLEX
+if test $qflex = "yes" ; then
+  QEMU_CFLAGS="-DCONFIG_QFLEX $QEMU_CFLAGS"
+  libqflex=""
+fi
+
+# DEVTEROFLEX
+if test $devteroflex = "yes" ; then
+  QEMU_CFLAGS="-DCONFIG_DEVTEROFLEX $QEMU_CFLAGS"
+  libdevteroflex="-lprotobuf-c -lrt"
+fi
+##########################################
+
 
 # Exclude --warn-common with TSan to suppress warnings from the TSan libraries.
 if test "$solaris" = "no" && test "$tsan" = "no"; then
@@ -3811,6 +3851,19 @@ fi
 if test "$safe_stack" = "yes"; then
   echo "CONFIG_SAFESTACK=y" >> $config_host_mak
 fi
+
+######################
+# QFLEX
+if test "$qflex" = "yes" ; then
+  echo "CONFIG_QFLEX=y" >> $config_host_mak
+  echo "LIBQFLEX_LIBS=$libqflex" >> $config_host_mak
+fi
+# DEVTEROFLEX
+if test "$devteroflex" = "yes" ; then
+  echo "CONFIG_DEVTEROFLEX=y" >> $config_host_mak
+  echo "LIBDEVTEROFLEX_LIBS=$libdevteroflex" >> $config_host_mak
+fi
+######################
 
 # If we're using a separate build tree, set it up now.
 # DIRS are directories which we simply mkdir in the build tree;

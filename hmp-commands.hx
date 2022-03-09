@@ -1744,3 +1744,157 @@ ERST
                       "\n\t\t\t -b to specify dirty bitmap as method of calculation)",
         .cmd        = hmp_calc_dirty_rate,
     },
+
+#ifdef CONFIG_QFLEX
+
+    {
+        .name       = "qflex-log",
+        .args_type  = "items:s",
+        .params     = "item1[,...]",
+        .help       = "activate logging of the specified items of qflex",
+        .cmd        = hmp_qflex_log,
+    },
+
+SRST
+``qflex-log`` *item1*\ [,...]
+  Activate logging of the specified items.
+ERST
+
+    {
+        .name       = "qflex-singlestep-start",
+        .args_type  = "",
+        .params     = "",
+        .help       = "start singlestepping",
+        .cmd        = hmp_qflex_singlestep_start,
+    },
+
+SRST
+``qflex-singlestep-start``
+  Start singlestepping, change control flow to QFLEX
+ERST
+
+    {
+        .name       = "qflex-singlestep-stop",
+        .args_type  = "",
+        .params     = "",
+        .help       = "stop singlestepping",
+        .cmd        = hmp_qflex_singlestep_stop,
+    },
+
+SRST
+``qflex-singlestep-stop``
+  Stop singlestepping, change control flow to QFLEX
+ERST
+
+    {
+        .name       = "qflex-mem-trace-start",
+        .args_type  = "nb_insn:i,trace_type:i",
+        .params     = "nb_insn trace_type",
+        .help       = "start mem trace",
+        .cmd        = hmp_qflex_mem_trace_start,
+    },
+
+SRST
+``qflex-mem-trace-start`` *nb_insn* *trace_type*
+  Run mem trace for amount of *nb_insn* with trace generation type *trace_type*.
+ERST
+
+    {
+        .name       = "qflex-mem-trace-stop",
+        .args_type  = "",
+        .params     = "",
+        .help       = "stop mem trace",
+        .cmd        = hmp_qflex_mem_trace_stop,
+    },
+
+SRST
+``qflex-mem-trace-stop``
+  Stop mem trace.
+ERST
+
+    {
+        .name       = "qflex-mem-trace-end",
+        .args_type  = "",
+        .params     = "",
+        .help       = "end mem trace, reset stats",
+        .cmd        = hmp_qflex_mem_trace_start,
+    },
+
+SRST
+``qflex-mem-trace-end``
+  End mem trace by disabling and resetting stats.
+ERST
+
+    {
+        .name       = "qflex-mem-trace-log-stats",
+        .args_type  = "",
+        .params     = "",
+        .help       = "start mem trace",
+        .cmd        = hmp_qflex_mem_trace_log_stats,
+    },
+
+SRST
+``qflex-mem-trace-log-stats``
+  Prints mem-trace results.
+ERST
+
+
+#ifdef CONFIG_DEVTEROFLEX
+    {
+        .name       = "devteroflex-start",
+        .args_type  = "",
+        .params     = "",
+        .help       = "start devteroflex",
+        .cmd        = hmp_devteroflex_start,
+    },
+
+SRST
+``devteroflex-start``
+  start devteroflex.
+ERST
+
+    {
+        .name       = "devteroflex-gen-verification-start",
+        .args_type  = "nb_insn:i",
+        .params     = "nb_insn",
+        .help       = "start tracing of state and modified pages",
+        .cmd        = hmp_devteroflex_gen_verification_start,
+    },
+
+SRST
+``devteroflex-gen-verification-start`` *nb_insn*
+  Run state tracing for *nb_insn*, this state can be used by
+  the Chisel verification infrastructure to test for correctness.
+ERST
+
+    {
+        .name       = "devteroflex-stop-full",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Stop devteroflex running and synchronizing pages",
+        .cmd        = hmp_devteroflex_stop_full,
+    },
+
+SRST
+``devteroflex-stop-full``
+  Stop devteroflex running and synchronizing pages.
+ERST
+
+    {
+        .name       = "devteroflex-gen-example",
+        .args_type  = "op:s,nb_insn:i",
+        .params     = "op nb_insn",
+        .help       = "start/stop example helper callbacks",
+        .cmd        = hmp_devteroflex_gen_example,
+    },
+
+SRST
+``devteroflex-gen-example [ start | stop ]`` *nb_insn*
+  Run example helper callbacks for *nb_insn*. This is an example
+  of instrumenting QEMU instruction execution.
+ERST
+
+#endif
+
+
+#endif

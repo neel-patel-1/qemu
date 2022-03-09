@@ -38,6 +38,19 @@
 #include "translate-a64.h"
 #include "qemu/atomic128.h"
 
+#ifdef CONFIG_QFLEX
+#include "qflex/qflex-traces.h"
+#define GEN_HELPER(func)  glue(gen_helper_, func)
+#define GEN_QFLEX_HELPER(cond, func) if(cond) func
+#else
+#define GEN_HELPER(func)
+#define GEN_QFLEX_HELPER(cond, func)
+#endif // CONFIG_QFLEX
+
+#ifdef CONFIG_DEVTEROFLEX
+#include "qflex/devteroflex/custom-instrumentation.h"
+#endif
+
 static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_pc;
 
@@ -275,6 +288,8 @@ static TCGv_i64 gen_mte_check1_mmuidx(DisasContext *s, TCGv_i64 addr,
         tcg_desc = tcg_const_i32(desc);
 
         ret = new_tmp_a64(s);
+        GEN_QFLEX_HELPER(devteroflexGen.example, GEN_HELPER(devteroflex_example_instrumentation)( 
+                         cpu_env, tcg_const_i64(TAG_MTE_OPERATION), addr));
         gen_helper_mte_check(ret, cpu_env, tcg_desc, addr);
         tcg_temp_free_i32(tcg_desc);
 
@@ -965,8 +980,14 @@ static void do_fp_st(DisasContext *s, int srcidx, TCGv_i64 tcg_addr, int size)
 
     if (size < 4) {
         mop = finalize_memop(s, size);
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+						cpu_env, tcg_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
         tcg_gen_qemu_st_i64(tmplo, tcg_addr, get_mem_index(s), mop);
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+						cpu_env, tcg_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
     } else {
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+						cpu_env, tcg_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(8), tcg_const_i32(true)));
         bool be = s->be_data == MO_BE;
         TCGv_i64 tcg_hiaddr = tcg_temp_new_i64();
         TCGv_i64 tmphi = tcg_temp_new_i64();
@@ -982,6 +1003,8 @@ static void do_fp_st(DisasContext *s, int srcidx, TCGv_i64 tcg_addr, int size)
 
         tcg_temp_free_i64(tcg_hiaddr);
         tcg_temp_free_i64(tmphi);
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+						cpu_env, tcg_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(8), tcg_const_i32(true)));
     }
 
     tcg_temp_free_i64(tmplo);
@@ -999,8 +1022,15 @@ static void do_fp_ld(DisasContext *s, int destidx, TCGv_i64 tcg_addr, int size)
 
     if (size < 4) {
         mop = finalize_memop(s, size);
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+						 cpu_env, tcg_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
         tcg_gen_qemu_ld_i64(tmplo, tcg_addr, get_mem_index(s), mop);
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+						 cpu_env, tcg_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
+
     } else {
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+						 cpu_env, tcg_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(8), tcg_const_i32(true)));
         bool be = s->be_data == MO_BE;
         TCGv_i64 tcg_hiaddr;
 
@@ -1014,6 +1044,8 @@ static void do_fp_ld(DisasContext *s, int destidx, TCGv_i64 tcg_addr, int size)
         tcg_gen_qemu_ld_i64(be ? tmplo : tmphi, tcg_hiaddr,
                             get_mem_index(s), mop);
         tcg_temp_free_i64(tcg_hiaddr);
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+						 cpu_env, tcg_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(8), tcg_const_i32(true)));
     }
 
     tcg_gen_st_i64(tmplo, cpu_env, fp_reg_offset(s, destidx, MO_64));
@@ -1042,6 +1074,7 @@ static void do_fp_ld(DisasContext *s, int destidx, TCGv_i64 tcg_addr, int size)
 static void read_vec_element(DisasContext *s, TCGv_i64 tcg_dest, int srcidx,
                              int element, MemOp memop)
 {
+    // TODO(Rafael): Instrument qflex_pre_mem/qflex_post_mem helper.
     int vect_off = vec_reg_offset(s, srcidx, element, memop & MO_SIZE);
     switch ((unsigned)memop) {
     case MO_8:
@@ -1101,6 +1134,7 @@ static void read_vec_element_i32(DisasContext *s, TCGv_i32 tcg_dest, int srcidx,
 static void write_vec_element(DisasContext *s, TCGv_i64 tcg_src, int destidx,
                               int element, MemOp memop)
 {
+    // TODO(Rafael): Instrument qflex_pre_mem/qflex_post_mem helper.
     int vect_off = vec_reg_offset(s, destidx, element, memop & MO_SIZE);
     switch (memop) {
     case MO_8:
@@ -1146,7 +1180,11 @@ static void do_vec_st(DisasContext *s, int srcidx, int element,
     TCGv_i64 tcg_tmp = tcg_temp_new_i64();
 
     read_vec_element(s, tcg_tmp, srcidx, element, mop & MO_SIZE);
+	GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, tcg_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
     tcg_gen_qemu_st_i64(tcg_tmp, tcg_addr, get_mem_index(s), mop);
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, tcg_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
 
     tcg_temp_free_i64(tcg_tmp);
 }
@@ -1157,7 +1195,12 @@ static void do_vec_ld(DisasContext *s, int destidx, int element,
 {
     TCGv_i64 tcg_tmp = tcg_temp_new_i64();
 
+	GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, tcg_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
     tcg_gen_qemu_ld_i64(tcg_tmp, tcg_addr, get_mem_index(s), mop);
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, tcg_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
+
     write_vec_element(s, tcg_tmp, destidx, element, mop & MO_SIZE);
 
     tcg_temp_free_i64(tcg_tmp);
@@ -1513,6 +1556,14 @@ static void handle_hint(DisasContext *s, uint32_t insn,
             gen_helper_autib(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
         }
         break;
+#ifdef CONFIG_QFLEX
+    case 90:  case 91:  case 92:  case 93:  case 94:  case 95:  case 96:  case 97:  case 98:  case 99:
+    case 100: case 101: case 102: case 103: case 104: case 105: case 106: case 107: case 108: case 109:
+    case 110: case 111: case 112: case 113: case 114: case 115: case 116: case 117: case 118: case 119:
+    case 120: case 121: case 122: case 123: case 124: case 125: case 126: case 127:
+        GEN_HELPER(qflex_magic_inst)(cpu_env, tcg_const_i64(selector));
+        return;
+#endif /* CONFIG_QFLEX */
     default:
         /* default specified as NOP equivalent */
         break;
@@ -2299,6 +2350,8 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
             gen_io_start();
         }
 
+        GEN_QFLEX_HELPER(devteroflexGen.example, GEN_HELPER(devteroflex_example_instrumentation)( 
+                         cpu_env, tcg_const_i64(TAG_EXCEPTION_RETURN), dst));
         gen_helper_exception_return(cpu_env, dst);
         tcg_temp_free_i64(dst);
         /* Must exit loop to check un-masked IRQs */
@@ -2454,6 +2507,9 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
 
     tcg_gen_brcond_i64(TCG_COND_NE, addr, cpu_exclusive_addr, fail_label);
 
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, cpu_exclusive_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(is_pair)));
+
     tmp = tcg_temp_new_i64();
     if (is_pair) {
         if (size == 2) {
@@ -2502,6 +2558,10 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     gen_set_label(fail_label);
     tcg_gen_movi_i64(cpu_reg(s, rd), 1);
     gen_set_label(done_label);
+
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, cpu_exclusive_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(is_pair)));
+
     tcg_gen_movi_i64(cpu_exclusive_addr, -1);
 }
 
@@ -2517,8 +2577,20 @@ static void gen_compare_and_swap(DisasContext *s, int rs, int rt,
         gen_check_sp_alignment(s);
     }
     clean_addr = gen_mte_check1(s, cpu_reg_sp(s, rn), true, rn != 31, size);
+
+    // TODO（Rafael): Replace here MMU_DATA_STORE with exclusive LOAD.
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
+
     tcg_gen_atomic_cmpxchg_i64(tcg_rs, clean_addr, tcg_rs, tcg_rt, memidx,
                                size | MO_ALIGN | s->be_data);
+
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
 }
 
 static void gen_compare_and_swap_pair(DisasContext *s, int rs, int rt,
@@ -2537,6 +2609,12 @@ static void gen_compare_and_swap_pair(DisasContext *s, int rs, int rt,
 
     /* This is a single atomic access, despite the "pair". */
     clean_addr = gen_mte_check1(s, cpu_reg_sp(s, rn), true, rn != 31, size + 1);
+
+    // TODO（Rafael): Replace here MMU_DATA_STORE with exclusive LOAD.
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(true)));
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(true)));
 
     if (size == 2) {
         TCGv_i64 cmp = tcg_temp_new_i64();
@@ -2610,6 +2688,11 @@ static void gen_compare_and_swap_pair(DisasContext *s, int rs, int rt,
         tcg_temp_free_i64(d1);
         tcg_temp_free_i64(d2);
     }
+
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(true)));
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(true)));
 }
 
 /* Update the Sixty-Four bit (SF) registersize. This logic is derived
@@ -2675,6 +2758,8 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
                                     false, rn != 31, size);
         s->is_ldex = true;
         gen_load_exclusive(s, rt, rt2, clean_addr, size, false);
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
         if (is_lasr) {
             tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
         }
@@ -2695,8 +2780,12 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
         clean_addr = gen_mte_check1(s, cpu_reg_sp(s, rn),
                                     true, rn != 31, size);
         /* TODO: ARMv8.4-LSE SCTLR.nAA */
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
         do_gpr_st(s, cpu_reg(s, rt), clean_addr, size | MO_ALIGN, true, rt,
                   disas_ldst_compute_iss_sf(size, false, 0), is_lasr);
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
         return;
 
     case 0xc: /* LDLAR */
@@ -2713,8 +2802,13 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
         clean_addr = gen_mte_check1(s, cpu_reg_sp(s, rn),
                                     false, rn != 31, size);
         /* TODO: ARMv8.4-LSE SCTLR.nAA */
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
         do_gpr_ld(s, cpu_reg(s, rt), clean_addr, size | MO_ALIGN, false, true,
                   rt, disas_ldst_compute_iss_sf(size, false, 0), is_lasr);
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
+
         tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
         return;
 
@@ -2748,7 +2842,11 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
             clean_addr = gen_mte_check1(s, cpu_reg_sp(s, rn),
                                         false, rn != 31, size);
             s->is_ldex = true;
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(true)));
             gen_load_exclusive(s, rt, rt2, clean_addr, size, true);
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(true)));
             if (is_lasr) {
                 tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
             }
@@ -2826,8 +2924,13 @@ static void disas_ld_lit(DisasContext *s, uint32_t insn)
         /* Only unsigned 32bit loads target 32bit registers.  */
         bool iss_sf = opc != 0;
 
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
         do_gpr_ld(s, tcg_rt, clean_addr, size + is_signed * MO_SIGN,
                   false, true, rt, iss_sf, false);
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
+
     }
     tcg_temp_free_i64(clean_addr);
 }
@@ -2979,7 +3082,11 @@ static void disas_ldst_pair(DisasContext *s, uint32_t insn)
         TCGv_i64 tcg_rt = cpu_reg(s, rt);
         TCGv_i64 tcg_rt2 = cpu_reg(s, rt2);
 
+        TCGv_i64 next_addr = tcg_temp_new_i64();
+        tcg_gen_addi_i64(next_addr, clean_addr, 1 << size);
         if (is_load) {
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(true)));
             TCGv_i64 tmp = tcg_temp_new_i64();
 
             /* Do not modify tcg_rt before recognizing any exception
@@ -2991,14 +3098,21 @@ static void disas_ldst_pair(DisasContext *s, uint32_t insn)
             do_gpr_ld(s, tcg_rt2, clean_addr, size + is_signed * MO_SIGN,
                       false, false, 0, false, false);
 
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(true)));
+
             tcg_gen_mov_i64(tcg_rt, tmp);
             tcg_temp_free_i64(tmp);
         } else {
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(true)));
             do_gpr_st(s, tcg_rt, clean_addr, size,
                       false, 0, false, false);
             tcg_gen_addi_i64(clean_addr, clean_addr, 1 << size);
             do_gpr_st(s, tcg_rt2, clean_addr, size,
                       false, 0, false, false);
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(true)));
         }
     }
 
@@ -3117,12 +3231,20 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn,
         bool iss_sf = disas_ldst_compute_iss_sf(size, is_signed, opc);
 
         if (is_store) {
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
             do_gpr_st_memidx(s, tcg_rt, clean_addr, size, memidx,
                              iss_valid, rt, iss_sf, false);
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
         } else {
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
             do_gpr_ld_memidx(s, tcg_rt, clean_addr, size + is_signed * MO_SIGN,
                              is_extended, memidx,
                              iss_valid, rt, iss_sf, false);
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
         }
     }
 
@@ -3222,11 +3344,19 @@ static void disas_ldst_reg_roffset(DisasContext *s, uint32_t insn,
         TCGv_i64 tcg_rt = cpu_reg(s, rt);
         bool iss_sf = disas_ldst_compute_iss_sf(size, is_signed, opc);
         if (is_store) {
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
             do_gpr_st(s, tcg_rt, clean_addr, size,
                       true, rt, iss_sf, false);
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
         } else {
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
             do_gpr_ld(s, tcg_rt, clean_addr, size + is_signed * MO_SIGN,
                       is_extended, true, rt, iss_sf, false);
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
         }
     }
 }
@@ -3306,11 +3436,19 @@ static void disas_ldst_reg_unsigned_imm(DisasContext *s, uint32_t insn,
         TCGv_i64 tcg_rt = cpu_reg(s, rt);
         bool iss_sf = disas_ldst_compute_iss_sf(size, is_signed, opc);
         if (is_store) {
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
             do_gpr_st(s, tcg_rt, clean_addr, size,
                       true, rt, iss_sf, false);
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
         } else {
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
             do_gpr_ld(s, tcg_rt, clean_addr, size + is_signed * MO_SIGN,
                       is_extended, true, rt, iss_sf, false);
+            GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
         }
     }
 }
@@ -3392,6 +3530,9 @@ static void disas_ldst_atomic(DisasContext *s, uint32_t insn,
     }
     clean_addr = gen_mte_check1(s, cpu_reg_sp(s, rn), false, rn != 31, size);
 
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
+
     if (o3_opc == 014) {
         /*
          * LDAPR* are a special case because they are a simple load, not a
@@ -3421,6 +3562,8 @@ static void disas_ldst_atomic(DisasContext *s, uint32_t insn,
     if ((mop & MO_SIGN) && size != MO_64) {
         tcg_gen_ext32u_i64(tcg_rt, tcg_rt);
     }
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
 }
 
 /*
@@ -3476,6 +3619,9 @@ static void disas_ldst_pac(DisasContext *s, uint32_t insn,
     clean_addr = gen_mte_check1(s, dirty_addr, false,
                                 is_wback || rn != 31, size);
 
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
+
     tcg_rt = cpu_reg(s, rt);
     do_gpr_ld(s, tcg_rt, clean_addr, size,
               /* extend */ false, /* iss_valid */ !is_wback,
@@ -3484,6 +3630,9 @@ static void disas_ldst_pac(DisasContext *s, uint32_t insn,
     if (is_wback) {
         tcg_gen_mov_i64(cpu_reg_sp(s, rn), dirty_addr);
     }
+
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
 }
 
 /*
@@ -3559,14 +3708,23 @@ static void disas_ldst_ldapr_stlr(DisasContext *s, uint32_t insn)
     if (is_store) {
         /* Store-Release semantics */
         tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
         do_gpr_st(s, cpu_reg(s, rt), clean_addr, mop, true, rt, iss_sf, true);
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size), tcg_const_i32(false)));
     } else {
         /*
          * Load-AcquirePC semantics; we implement as the slightly more
          * restrictive Load-Acquire.
          */
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
         do_gpr_ld(s, cpu_reg(s, rt), clean_addr, mop,
                   extend, true, rt, iss_sf, true);
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size), tcg_const_i32(false)));
+
         tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
     }
 }
@@ -3800,6 +3958,7 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
  */
 static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
 {
+    // TODO(Rafael): Instrument this function with qflex_pre_mem / qflex_post_mem
     int rt = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
     int rm = extract32(insn, 16, 5);
@@ -14770,10 +14929,21 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     s->pc_curr = s->base.pc_next;
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+                     cpu_env, tcg_const_i64(s->base.pc_next), tcg_const_i32(MMU_INST_FETCH), tcg_const_i32(4), tcg_const_i32(false)));
     insn = arm_ldl_code(env, &s->base, s->base.pc_next, s->sctlr_b);
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+                     cpu_env, tcg_const_i64(s->base.pc_next), tcg_const_i32(MMU_INST_FETCH), tcg_const_i32(4), tcg_const_i32(false)));
     s->insn = insn;
     s->base.pc_next += 4;
 
+    /**
+     * Inserting a function callbacks will slowdown significantly excecution, 
+     * to not slowdown constantly, we should insert the helper only when intented. 
+     */
+    GEN_QFLEX_HELPER(devteroflexGen.example, GEN_HELPER(devteroflex_example_instrumentation)( 
+                     cpu_env, tcg_const_i64(TAG_INSTRUCTION_DECODED), tcg_const_i64(s->base.pc_next)));
+ 
     s->fp_access_checked = false;
     s->sve_access_checked = false;
 

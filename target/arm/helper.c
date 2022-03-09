@@ -36,6 +36,10 @@
 #include "semihosting/common-semi.h"
 #endif
 
+#ifdef CONFIG_DEVTEROFLEX
+#include "qflex/devteroflex/devteroflex-mmu.h"
+#endif
+
 #define ARM_CPU_FREQ 1000000000 /* FIXME: 1 GHz, should be configurable */
 #define PMCR_NUM_COUNTERS 4 /* QEMU IMPDEF choice */
 
@@ -489,6 +493,10 @@ static void tlbiall_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = env_cpu(env);
 
     tlb_flush_all_cpus_synced(cs);
+
+#ifdef CONFIG_DEVTEROFLEX
+    devteroflex_mmu_flush_all();
+#endif
 }
 
 static void tlbiasid_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -497,6 +505,11 @@ static void tlbiasid_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = env_cpu(env);
 
     tlb_flush_all_cpus_synced(cs);
+
+#ifdef CONFIG_DEVTEROFLEX
+    uint64_t asid = (value >> 48);
+    devteroflex_mmu_flush_by_asid(asid);
+#endif
 }
 
 static void tlbimva_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -505,6 +518,13 @@ static void tlbimva_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = env_cpu(env);
 
     tlb_flush_page_all_cpus_synced(cs, value & TARGET_PAGE_MASK);
+
+#ifdef CONFIG_DEVTEROFLEX
+    uint64_t vpn = (value << 16) >> 4;
+    uint64_t asid = (value >> 48);
+
+    devteroflex_mmu_flush_by_va_asid(vpn, asid);
+#endif
 }
 
 static void tlbimvaa_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -513,6 +533,10 @@ static void tlbimvaa_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = env_cpu(env);
 
     tlb_flush_page_all_cpus_synced(cs, value & TARGET_PAGE_MASK);
+
+#ifdef CONFIG_DEVTEROFLEX
+    devteroflex_mmu_flush_all();
+#endif
 }
 
 /*
@@ -536,6 +560,11 @@ static void tlbiall_write(CPUARMState *env, const ARMCPRegInfo *ri,
     } else {
         tlb_flush(cs);
     }
+
+#ifdef CONFIG_DEVTEROFLEX
+    devteroflex_mmu_flush_all();
+#endif
+
 }
 
 static void tlbimva_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -550,6 +579,14 @@ static void tlbimva_write(CPUARMState *env, const ARMCPRegInfo *ri,
     } else {
         tlb_flush_page(cs, value);
     }
+
+#ifdef CONFIG_DEVTEROFLEX
+    uint64_t vpn = (value << 16) >> 4;
+    uint64_t asid = (value >> 48);
+
+    devteroflex_mmu_flush_by_va_asid(vpn, asid);
+#endif
+
 }
 
 static void tlbiasid_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -563,6 +600,12 @@ static void tlbiasid_write(CPUARMState *env, const ARMCPRegInfo *ri,
     } else {
         tlb_flush(cs);
     }
+
+#ifdef CONFIG_DEVTEROFLEX
+    uint64_t asid = (value >> 48);
+    devteroflex_mmu_flush_by_asid(asid);
+#endif
+
 }
 
 static void tlbimvaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -577,6 +620,11 @@ static void tlbimvaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
     } else {
         tlb_flush_page(cs, value);
     }
+
+#ifdef CONFIG_DEVTEROFLEX
+    devteroflex_mmu_flush_all();
+#endif
+
 }
 
 static void tlbiall_nsnh_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -588,6 +636,10 @@ static void tlbiall_nsnh_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         ARMMMUIdxBit_E10_1 |
                         ARMMMUIdxBit_E10_1_PAN |
                         ARMMMUIdxBit_E10_0);
+
+#ifdef CONFIG_DEVTEROFLEX
+    devteroflex_mmu_flush_all();
+#endif
 }
 
 static void tlbiall_nsnh_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -599,6 +651,10 @@ static void tlbiall_nsnh_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                         ARMMMUIdxBit_E10_1 |
                                         ARMMMUIdxBit_E10_1_PAN |
                                         ARMMMUIdxBit_E10_0);
+
+#ifdef CONFIG_DEVTEROFLEX
+    devteroflex_mmu_flush_all();
+#endif
 }
 
 
@@ -608,6 +664,9 @@ static void tlbiall_hyp_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = env_cpu(env);
 
     tlb_flush_by_mmuidx(cs, ARMMMUIdxBit_E2);
+#ifdef CONFIG_DEVTEROFLEX
+    devteroflex_mmu_flush_all();
+#endif
 }
 
 static void tlbiall_hyp_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -616,6 +675,9 @@ static void tlbiall_hyp_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = env_cpu(env);
 
     tlb_flush_by_mmuidx_all_cpus_synced(cs, ARMMMUIdxBit_E2);
+#ifdef CONFIG_DEVTEROFLEX
+    devteroflex_mmu_flush_all();
+#endif
 }
 
 static void tlbimva_hyp_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -4324,6 +4386,10 @@ static void tlbi_aa64_vmalle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int mask = vae1_tlbmask(env);
 
     tlb_flush_by_mmuidx_all_cpus_synced(cs, mask);
+
+#ifdef CONFIG_DEVTEROFLEX
+    devteroflex_mmu_flush_all();
+#endif
 }
 
 static void tlbi_aa64_vmalle1_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -4337,6 +4403,9 @@ static void tlbi_aa64_vmalle1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     } else {
         tlb_flush_by_mmuidx(cs, mask);
     }
+#ifdef CONFIG_DEVTEROFLEX
+    devteroflex_mmu_flush_all();
+#endif
 }
 
 static int alle1_tlbmask(CPUARMState *env)
@@ -4379,6 +4448,9 @@ static void tlbi_aa64_alle1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int mask = alle1_tlbmask(env);
 
     tlb_flush_by_mmuidx(cs, mask);
+#ifdef CONFIG_DEVTEROFLEX
+    devteroflex_mmu_flush_all();
+#endif
 }
 
 static void tlbi_aa64_alle2_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -4406,6 +4478,10 @@ static void tlbi_aa64_alle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int mask = alle1_tlbmask(env);
 
     tlb_flush_by_mmuidx_all_cpus_synced(cs, mask);
+
+#ifdef CONFIG_DEVTEROFLEX
+    devteroflex_mmu_flush_all();
+#endif
 }
 
 static void tlbi_aa64_alle2is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -4462,6 +4538,13 @@ static void tlbi_aa64_vae1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int bits = vae1_tlbbits(env, pageaddr);
 
     tlb_flush_page_bits_by_mmuidx_all_cpus_synced(cs, pageaddr, mask, bits);
+
+#ifdef CONFIG_DEVTEROFLEX
+    uint64_t vpn = (value << 16) >> 4;
+    uint64_t asid = (value >> 48);
+
+    devteroflex_mmu_flush_by_va_asid(vpn, asid);
+#endif
 }
 
 static void tlbi_aa64_vae1_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -4482,6 +4565,13 @@ static void tlbi_aa64_vae1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     } else {
         tlb_flush_page_bits_by_mmuidx(cs, pageaddr, mask, bits);
     }
+
+#ifdef CONFIG_DEVTEROFLEX
+    uint64_t vpn = (value << 16) >> 4;
+    uint64_t asid = (value >> 48);
+
+    devteroflex_mmu_flush_by_va_asid(vpn, asid);
+#endif
 }
 
 static void tlbi_aa64_vae2is_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -4673,6 +4763,81 @@ static void tlbi_aa64_rvae3is_write(CPUARMState *env,
     do_rvae_write(env, value, ARMMMUIdxBit_SE3, true);
 }
 #endif
+
+
+static void tlbi_aa64_aside1_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                    uint64_t value)
+{
+    CPUState *cs = env_cpu(env);
+    int mask = vae1_tlbmask(env);
+
+    if (tlb_force_broadcast(env)) {
+        tlb_flush_by_mmuidx_all_cpus_synced(cs, mask);
+    } else {
+        tlb_flush_by_mmuidx(cs, mask);
+    }
+
+#ifdef CONFIG_DEVTEROFLEX
+    uint64_t asid = (value >> 48);
+    devteroflex_mmu_flush_by_asid(asid);
+#endif
+}
+
+static void tlbi_aa64_aside1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                    uint64_t value)
+{
+    CPUState *cs = env_cpu(env);
+    int mask = vae1_tlbmask(env);
+
+    tlb_flush_by_mmuidx_all_cpus_synced(cs, mask);
+
+#ifdef CONFIG_DEVTEROFLEX
+    uint64_t asid = (value >> 48);
+    devteroflex_mmu_flush_by_asid(asid);
+#endif
+}
+
+static void tlbi_aa64_vaae1ls_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                   uint64_t value)
+{
+    CPUState *cs = env_cpu(env);
+    int mask = vae1_tlbmask(env);
+    uint64_t pageaddr = sextract64(value << 12, 0, 56);
+    int bits = vae1_tlbbits(env, pageaddr);
+
+    tlb_flush_page_bits_by_mmuidx_all_cpus_synced(cs, pageaddr, mask, bits);
+
+#ifdef CONFIG_DEVTEROFLEX
+    uint64_t vpn = (value << 12);
+    devteroflex_mmu_flush_by_va(vpn);
+#endif
+}
+
+static void tlbi_aa64_vaae1_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                   uint64_t value)
+{
+    /* Invalidate by VA, EL1&0 (AArch64 version).
+     * Currently handles all of VAE1, VAAE1, VAALE1 and VALE1,
+     * since we don't support flush-for-specific-ASID-only or
+     * flush-last-level-only.
+     */
+    CPUState *cs = env_cpu(env);
+    int mask = vae1_tlbmask(env);
+    uint64_t pageaddr = sextract64(value << 12, 0, 56);
+    int bits = vae1_tlbbits(env, pageaddr);
+
+    if (tlb_force_broadcast(env)) {
+        tlb_flush_page_bits_by_mmuidx_all_cpus_synced(cs, pageaddr, mask, bits);
+    } else {
+        tlb_flush_page_bits_by_mmuidx(cs, pageaddr, mask, bits);
+    }
+
+#ifdef CONFIG_DEVTEROFLEX
+    uint64_t vpn = (value << 12);
+    devteroflex_mmu_flush_by_va(vpn);
+#endif
+}
+
 
 static CPAccessResult aa64_zva_access(CPUARMState *env, const ARMCPRegInfo *ri,
                                       bool isread)
@@ -4884,11 +5049,11 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "TLBI_ASIDE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 2,
       .access = PL1_W, .accessfn = access_ttlb, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_vmalle1is_write },
+      .writefn = tlbi_aa64_aside1is_write },
     { .name = "TLBI_VAAE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 3,
       .access = PL1_W, .accessfn = access_ttlb, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_vae1is_write },
+      .writefn = tlbi_aa64_vaae1ls_write },
     { .name = "TLBI_VALE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 5,
       .access = PL1_W, .accessfn = access_ttlb, .type = ARM_CP_NO_RAW,
@@ -4896,7 +5061,7 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "TLBI_VAALE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 7,
       .access = PL1_W, .accessfn = access_ttlb, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_vae1is_write },
+      .writefn = tlbi_aa64_vaae1ls_write },
     { .name = "TLBI_VMALLE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 0,
       .access = PL1_W, .accessfn = access_ttlb, .type = ARM_CP_NO_RAW,
@@ -4908,11 +5073,11 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "TLBI_ASIDE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 2,
       .access = PL1_W, .accessfn = access_ttlb, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_vmalle1_write },
+      .writefn = tlbi_aa64_aside1_write },
     { .name = "TLBI_VAAE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 3,
       .access = PL1_W, .accessfn = access_ttlb, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_vae1_write },
+      .writefn = tlbi_aa64_vaae1_write },
     { .name = "TLBI_VALE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 5,
       .access = PL1_W, .accessfn = access_ttlb, .type = ARM_CP_NO_RAW,
@@ -4920,7 +5085,7 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "TLBI_VAALE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 7,
       .access = PL1_W, .accessfn = access_ttlb, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_vae1_write },
+      .writefn = tlbi_aa64_vaae1_write },
     { .name = "TLBI_IPAS2E1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 0, .opc2 = 1,
       .access = PL2_W, .type = ARM_CP_NOP },
@@ -13569,4 +13734,50 @@ void aarch64_sve_change_el(CPUARMState *env, int old_el,
         aarch64_sve_narrow_vq(env, new_len + 1);
     }
 }
+#endif
+
+#ifdef CONFIG_QFLEX
+#include "qflex-helper.h"
+
+uint64_t gva_to_hva_arch(CPUState *cs, uint64_t vaddr, MMUAccessType access_type) {
+#ifdef CONFIG_USER_ONLY
+    return g2h(vaddr) ? (uint64_t)g2h(vaddr) : -1;
+#endif
+
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    void *phys_addr = NULL;
+    unsigned mmu_idx = cpu_mmu_index(env, (access_type == MMU_INST_FETCH));
+
+    phys_addr = tlb_vaddr_to_host(env, vaddr, access_type, mmu_idx);
+
+    if (!phys_addr)
+    {
+        return -1;
+    }
+
+    return (uint64_t) phys_addr;
+}
+
+/**
+ * @brief Translates a guest virtual address to host for an ASID that is not part of the CPUState anymore.
+ * 
+ * @param cs CPUState
+ * @param vaddr virtual addr to translate
+ * @param access_type type of access: 0 = DATA_LOAD; 1 = DATA_STORE; 2 = INST_FETCH;
+ * @param asid_reg ASID reg to replace for translation
+ * @return uint64_t host virtual address for that ASID
+ */
+uint64_t gva_to_hva_arch_with_asid(CPUState *cs, uint64_t vaddr, MMUAccessType access_type, uint64_t asid_reg) {
+#ifdef CONFIG_USER_ONLY
+    return g2h(vaddr) ? (uint64_t)g2h(vaddr) : -1;
+#endif
+    CPUARMState *env = cs->env_ptr;
+    uint64_t old_ttbr = env->cp15.ttbr0_ns;
+    env->cp15.ttbr0_ns = asid_reg;
+    uint64_t hva = gva_to_hva_arch(cs, vaddr, access_type);
+    env->cp15.ttbr0_ns = old_ttbr;
+    return hva;
+}
+
 #endif

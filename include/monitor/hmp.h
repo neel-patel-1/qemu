@@ -134,4 +134,8 @@ void hmp_calc_dirty_rate(Monitor *mon, const QDict *qdict);
 void hmp_human_readable_text_helper(Monitor *mon,
                                     HumanReadableText *(*qmp_handler)(Error **));
 
+#ifdef CONFIG_QFLEX
+#include "qflex/qflex-hmp.h"
+#endif
+
 #endif

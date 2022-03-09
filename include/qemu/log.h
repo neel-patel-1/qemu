@@ -1,6 +1,8 @@
 #ifndef QEMU_LOG_H
 #define QEMU_LOG_H
 
+#include "qflex/qflex-log.h"
+
 /* A small part of this API is split into its own header */
 #include "qemu/log-for-trace.h"
 #include "qemu/rcu.h"

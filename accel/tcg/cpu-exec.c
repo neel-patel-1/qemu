@@ -47,6 +47,17 @@
 #include "tb-context.h"
 #include "internal.h"
 
+#ifdef CONFIG_QFLEX
+#include "qflex/qflex.h"
+#include "qflex/qflex-arch.h"
+
+#ifdef CONFIG_DEVTEROFLEX
+#include "qflex/devteroflex/devteroflex.h"
+#include "qflex/devteroflex/verification.h"
+
+#endif
+#endif
+
 /* -icount align implementation. */
 
 typedef struct SyncClocks {
@@ -474,6 +485,11 @@ void cpu_exec_step_atomic(CPUState *cpu)
         }
         assert_no_pages_locked();
         qemu_plugin_disable_mem_helpers(cpu);
+#ifdef CONFIG_DEVTEROFLEX
+        if(gen_verification()) {
+            gen_verification_inst_cancelled();
+        }
+#endif
     }
 
     /*
@@ -737,7 +753,23 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
      */
     qatomic_mb_set(&cpu_neg(cpu)->icount_decr.u16.high, 0);
 
+#ifdef CONFIG_QFLEX
+    if (qflex_is_exit_main_loop()) {
+       cpu->exception_index = EXCP_QFLEX_EXIT;
+        qemu_log("QFLEX: Catched exit loop request.\n");
+        return true;
+    }
+#endif
+    /* TODO: Get rid of non application critical interrupts by instructing the OS
+     * and pinning applications, currently this is a hack that could break functional
+     * correctness if the application itself requires interrupts.
+     * This follow execution path similar tor qemu's internal singlestepping.
+     */
+#ifdef CONFIG_QFLEX
+    if (unlikely(qatomic_read(&cpu->interrupt_request)) && !qflex_is_skip_interrupts()) {
+#else
     if (unlikely(qatomic_read(&cpu->interrupt_request))) {
+#endif
         int interrupt_request;
         qemu_mutex_lock_iothread();
         interrupt_request = cpu->interrupt_request;
@@ -938,6 +970,11 @@ int cpu_exec(CPUState *cpu)
         qemu_plugin_disable_mem_helpers(cpu);
 
         assert_no_pages_locked();
+#ifdef CONFIG_DEVTEROFLEX
+        if(gen_verification()) {
+            gen_verification_inst_cancelled();
+        }
+#endif
     }
 
     /* if an exception is pending, we execute it here */
@@ -1008,6 +1045,10 @@ int cpu_exec(CPUState *cpu)
 
     cpu_exec_exit(cpu);
     rcu_read_unlock();
+
+    if (ret == EXCP_QFLEX_EXIT) {
+        qflex_log_mask(QFLEX_LOG_GENERAL, "QFLEX: Exiting cpu-exec.\n");
+    }
 
     return ret;
 }
@@ -1091,3 +1132,12 @@ HumanReadableText *qmp_x_query_opcount(Error **errp)
 }
 
 #endif /* !CONFIG_USER_ONLY */
+
+#ifdef CONFIG_QFLEX
+void qflex_tb_flush(void) {
+    CPUState *cpu;
+    CPU_FOREACH(cpu) {
+        tb_flush(cpu);
+    }
+}
+#endif
