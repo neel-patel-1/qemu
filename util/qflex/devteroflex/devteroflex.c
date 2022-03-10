@@ -397,9 +397,10 @@ static void devteroflex_prepare_singlestepping(void) {
     qflex_update_exit_main_loop(false);
     qflex_singlestep_start();
     qflex_update_skip_interrupts(true);
+    qemu_loglevel |= CPU_LOG_INT; 
     qflex_mem_trace_start(-1, -1);
     CPU_FOREACH(cpu) {
-        cpu_single_step(cpu, SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER);
+        cpu_single_step(cpu, SSTEP_ENABLE);
         qatomic_mb_set(&cpu->exit_request, 0);
     }
 }

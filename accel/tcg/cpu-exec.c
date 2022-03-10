@@ -765,11 +765,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
      * correctness if the application itself requires interrupts.
      * This follow execution path similar tor qemu's internal singlestepping.
      */
-#ifdef CONFIG_QFLEX
-    if (unlikely(qatomic_read(&cpu->interrupt_request)) && !qflex_is_skip_interrupts()) {
-#else
     if (unlikely(qatomic_read(&cpu->interrupt_request))) {
-#endif
         int interrupt_request;
         qemu_mutex_lock_iothread();
         interrupt_request = cpu->interrupt_request;
