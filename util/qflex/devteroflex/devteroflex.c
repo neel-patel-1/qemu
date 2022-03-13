@@ -82,13 +82,15 @@ static void run_transplant(CPUState *cpu, uint32_t thread) {
         devteroflex_unpack_archstate(cpu, &state);
     }
 
-    disable_cpu_comparison = true;
+    disable_cpu_comparison = true; // Disable comparison, because these instructions are not executed on DevteroFlex.
     // Execute the exception instruction
     qflex_singlestep(cpu);
     // continue until supervised instructions are runned.
     while(QFLEX_GET_ARCH(el)(cpu) != 0){
         qflex_singlestep(cpu);
     }
+
+    disable_cpu_comparison = false;
 
     // handle exception will change the state, so it
     if(devteroflex_is_running()) {
@@ -104,7 +106,6 @@ static void run_transplant(CPUState *cpu, uint32_t thread) {
         transplant_start(&c, thread);
     }
 
-    disable_cpu_comparison = false;
 }
 
 static void transplants_run(uint32_t pending) {
@@ -185,19 +186,24 @@ static void handle_evict_writeback(MessageFPGA * message) {
     uint64_t hvp = tpt_lookup(ipt_bits);
  
     qemu_log("DevteroFlex:MMU:ASID[%i]:VA[0x%016lx]:PERM[%lu]:WRITE BACK\n", asid, gvp, perm);
-    if(devteroflexConfig.is_debug && !disable_cpu_comparison) {
-        // Compare DevteroFlex modified page with QEMU
-        fetchPageFromFPGA(&c, ppn, (void *)&page_buffer);
-        uint8_t *page_in_qemu = (uint8_t *)hvp;
-        bool mismatched = false;
-        for (int i = 0; i < PAGE_SIZE; ++i) {
-            if(page_in_qemu[i] != page_buffer[i]){
-                qemu_log("BYTE[%d]:QEMU[%x] =/= FPGA[%x] \n", i, page_in_qemu[i], page_buffer[i]);
+    if(devteroflexConfig.is_debug) {
+        if(!disable_cpu_comparison){
+            // Compare DevteroFlex modified page with QEMU
+            fetchPageFromFPGA(&c, ppn, (void *)&page_buffer);
+            uint8_t *page_in_qemu = (uint8_t *)hvp;
+            bool mismatched = false;
+            for (int i = 0; i < PAGE_SIZE; ++i) {
+                if(page_in_qemu[i] != page_buffer[i]){
+                    qemu_log("BYTE[%d]:QEMU[%x] =/= FPGA[%x] \n", i, page_in_qemu[i], page_buffer[i]);
+                }
             }
-        }
-        if(mismatched) {
-            qemu_log("ERROR:Page mismatch\n");
-            abort();
+            if(mismatched) {
+                qemu_log("ERROR:Page mismatch\n");
+                abort();
+            }
+        } else {
+            // simply do nothing. 
+            // However, we should never write the FPGA.
         }
     } else {
         fetchPageFromFPGA(&c, ppn, (void *) hvp);
