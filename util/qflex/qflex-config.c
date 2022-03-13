@@ -64,6 +64,10 @@ QemuOptsList qemu_devteroflex_opts = {
             .name = "debug",
             .type = QEMU_OPT_BOOL,
         },
+        {
+            .name = "pure-singlestep",
+            .type = QEMU_OPT_BOOL,
+        },
         { /* end of list */ }
     },
 };
@@ -72,7 +76,8 @@ static void devteroflex_configure(QemuOpts *opts, Error **errp) {
     bool enabled = qemu_opt_get_bool(opts, "enabled", false);
     uint64_t fpga_dram_size = qemu_opt_get_number(opts, "dram-pages", -1);
     bool is_debug = qemu_opt_get_bool(opts, "debug", false);
-    devteroflex_init(enabled, false, fpga_dram_size, is_debug);
+    bool pure_singlestep = qemu_opt_get_bool(opts, "pure-singlestep", false);
+    devteroflex_init(enabled, false, fpga_dram_size, is_debug, pure_singlestep);
 }
 #endif /* CONFIG_DEVTEROFLEX */
 

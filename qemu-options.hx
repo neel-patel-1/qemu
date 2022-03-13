@@ -5440,21 +5440,18 @@ DEF("devteroflex", HAS_ARG, QEMU_OPTION_devteroflex, \
     QEMU_ARCH_ARM)
 
 SRST
-``-devteroflex  dram-pages=N,emulation=on|off,[run=on|off]``
+``-devteroflex  dram-pages=N,debug=on|off,enable=on|off,[pure-singlestep=on|off]``
     Enable DevteroFlex, FPGA Accelerated instrumentation platform.
 
     ``dram-pages=N``
     N is the number of pages
 
-    ``emulation=on``
-    Enable Devteroflex emulation mode.
-    Under this mode, there is no actual hardware enabled, and all instructions
-    that were supposed to get executed on FPGA will be emulated with single step execution.
+    ``enable=on``
+ 
+    ``debug=on``
 
-    ``run=on``
-    if DevteroFlex is run, will start DevteroFlex from the beginning.
-    Currently this option would run slowly give that most of
-    system calls or kernel instructions trigger transplants.
+    ``pure-singlestep=on``
+    Only advances using `qflex_singlestep` function
 
 ERST
 

@@ -30,11 +30,12 @@ typedef struct DevteroflexConfig {
     bool enabled;
     bool running;
     bool is_debug;
+    bool pure_singlestep;
 } DevteroflexConfig;
 
 extern DevteroflexConfig devteroflexConfig;
 
-void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, bool is_emulation);
+void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, bool is_emulation, bool pure_singlestep);
 
 static inline void devteroflex_start(void) {
     qflex_tb_flush();

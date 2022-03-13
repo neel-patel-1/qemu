@@ -169,7 +169,7 @@ static bool handle_evict_notify(MessageFPGA *message) {
     uint64_t ipt_bits = IPT_COMPRESS(gva, asid, perm);
     uint64_t hvp = tpt_lookup(ipt_bits);
 
-    qemu_log("DevteroFlex:MMU:ASID[%i]:VA[0x%016lx]:PERM[%lu]:EVICT\n", asid, gva, perm);
+    qemu_log("DevteroFlex:MMU:ASID[%x]:VA[0x%016lx]:PERM[%lu]:EVICT\n", asid, gva, perm);
     evict_notify_pending_add(ipt_bits, hvp);
     return false;
 }
@@ -185,7 +185,7 @@ static void handle_evict_writeback(MessageFPGA * message) {
 
     uint64_t hvp = tpt_lookup(ipt_bits);
  
-    qemu_log("DevteroFlex:MMU:ASID[%i]:VA[0x%016lx]:PERM[%lu]:WRITE BACK\n", asid, gvp, perm);
+    qemu_log("DevteroFlex:MMU:ASID[%x]:VA[0x%016lx]:PERM[%lu]:WRITE BACK\n", asid, gvp, perm);
     if(devteroflexConfig.is_debug) {
         if(!disable_cpu_comparison){
             // Compare DevteroFlex modified page with QEMU
@@ -235,7 +235,7 @@ static void handle_page_fault(MessageFPGA *message) {
         hvp = gva_to_hva(cpu, gvp, perm);
     }
     uint64_t ipt_bits = IPT_COMPRESS(gvp, asid, perm);
-    qemu_log("DevteroFlex:MMU:CPU[%i]:ASID[%i]:VA[0x%016lx]:PERM[%lu]:PAGE FAULT\n", thid, asid, gvp, perm);
+    qemu_log("DevteroFlex:MMU:CPU[%i]:ASID[%x]:VA[0x%016lx]:PERM[%lu]:PAGE FAULT\n", thid, asid, gvp, perm);
     if(hvp == -1) {
         qemu_log("   ---- PAGE FAULT translation miss, request transplant\n");
         transplant_forceTransplant(&c, thid);
@@ -293,7 +293,7 @@ void page_fault_return(uint64_t ipt_bits, uint64_t hvp, uint32_t thid) {
     uint32_t perm = IPT_GET_PERM(ipt_bits);
     uint64_t ppa = -1; // physical page address
     bool pushPage = insert_entry_get_ppn(hvp, ipt_bits, &ppa);
-    qemu_log("DevteroFlex:MMU:ASID[%lu]:GVA[0x%016lx]:HVA[0x%016lx]:PERM[%u]:PAGE FAULT RESPONSE\n", asid, gvpa, hvp, perm);
+    qemu_log("DevteroFlex:MMU:ASID[%lx]:GVA[0x%016lx]:HVA[0x%016lx]:PERM[%u]:PAGE FAULT RESPONSE\n", asid, gvpa, hvp, perm);
     if(pushPage) {
         // No synonym
         pushPageToFPGA(&c, ppa, (void*) hvp);
@@ -308,7 +308,7 @@ void page_eviction_request(uint64_t ipt_bits) {
     uint64_t gvp = IPT_GET_VA(ipt_bits);
     uint64_t asid = IPT_GET_ASID(ipt_bits);
 
-    qemu_log("DevteroFlex:MMU:ASID[%lu]:VA[0x%016lx]:PAGE FORCE EVICTION\n", asid, gvp);
+    qemu_log("DevteroFlex:MMU:ASID[%lx]:VA[0x%016lx]:PAGE FORCE EVICTION\n", asid, gvp);
     MessageFPGA evictRequest;
     makeEvictRequest(asid, gvp, &evictRequest);
     sendMessageToFPGA(&c, &evictRequest, sizeof(MessageFPGA));
@@ -406,6 +406,21 @@ static int devteroflex_execution_flow(void) {
     return 0;
 }
 
+static int qflex_singlestep_flow(void) {
+    CPUState *cpu;
+    printf("Will execute without attaching any DevteroFlex mechanism, only singlestepping\n");
+    while(1) {
+        CPU_FOREACH(cpu) {
+            qflex_singlestep(cpu);
+        }
+        if(!devteroflex_is_running()) {
+            break;
+        }
+    }
+
+    return 0;
+}
+
 static void devteroflex_prepare_singlestepping(void) {
     CPUState *cpu;
     qflex_update_exit_main_loop(false);
@@ -423,7 +438,11 @@ int devteroflex_singlestepping_flow(void) {
     qemu_log("DEVTEROFLEX: FPGA START\n");
     qflexState.log_inst = true;
     devteroflex_prepare_singlestepping();
-    devteroflex_execution_flow();
+    if(!devteroflexConfig.pure_singlestep) {
+        devteroflex_execution_flow();
+    } else {
+        qflex_singlestep_flow();
+    }
     qemu_log("DEVTEROFLEX: FPGA EXIT\n");
     qflexState.log_inst = false;
     devteroflex_stop_full();
@@ -446,10 +465,11 @@ void devteroflex_stop_full(void) {
     //qflex_mem_trace_stop();
 }
 
-void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, bool is_debug) {
+void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, bool is_debug, bool pure_singlestep) {
     devteroflexConfig.enabled = enabled;
     devteroflexConfig.running = run;
     devteroflexConfig.is_debug = is_debug;
+    devteroflexConfig.pure_singlestep = pure_singlestep;
     if(fpga_physical_pages != -1) {
         assert(fpga_physical_pages == 4096 && "For simulator, we only support 16MiB DRAM.");
         initFPGAContext(&c);
