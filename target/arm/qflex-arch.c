@@ -20,7 +20,7 @@ int      QFLEX_GET_ARCH(el)(CPUState *cs) { return arm_current_el(ENV(cs)); }
  * CnP:   bit  [0]
  */
 uint64_t QFLEX_GET_ARCH(asid)(CPUState *cs) {
-    if (true /* TODO: when do we need ttbr1 ? */) {
+    if (false /* TODO: when do we need ttbr1 ? */) {
         return ENV(cs)->cp15.ttbr0_ns >> 48;
     } else {
         return ENV(cs)->cp15.ttbr1_ns >> 48;
@@ -28,7 +28,7 @@ uint64_t QFLEX_GET_ARCH(asid)(CPUState *cs) {
 }
 
 uint64_t QFLEX_GET_ARCH(asid_reg)(CPUState *cs) {
-    if (true /* TODO: when do we need ttbr1 ? */) {
+    if (false /* TODO: when do we need ttbr1 ? */) {
         return ENV(cs)->cp15.ttbr0_ns;
     } else {
         return ENV(cs)->cp15.ttbr1_ns;
