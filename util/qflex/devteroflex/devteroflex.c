@@ -125,7 +125,15 @@ static void transplant_bringBack(uint32_t pending) {
         if(pending & (1 << cpu->cpu_index)) {
             qemu_log("DevteroFlex:CPU[%i]:Final Transplant FPGA->HOST\n", cpu->cpu_index);
             transplant_getState(&c, cpu->cpu_index, (uint64_t *) &state);
-            devteroflex_unpack_archstate(cpu, &state);
+            if(devteroflexConfig.is_debug){
+                if(devteroflex_compare_archstate(cpu, &state)) {
+                    // Dangerous!!!
+                    qemu_log("WARNING:DevteroFlex:CPU[%i]:An architecture state mismatch has been detected. Quitting QEMU now. \n", cpu->cpu_index);
+                    abort();
+                }
+            } else {
+                devteroflex_unpack_archstate(cpu, &state);
+            }
             cpu_pull_fpga(cpu->cpu_index);
         }
     }
