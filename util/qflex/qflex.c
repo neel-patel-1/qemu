@@ -38,6 +38,7 @@ int qflex_singlestep(CPUState *cpu) {
     int ret;
     qflex_update_exit_main_loop(false);
 
+    uint64_t pc_ss = QFLEX_GET_ARCH(pc)(cpu);
     if(qflexState.log_inst) {
         qemu_log("CPU[%i]: ", cpu->cpu_index); 
         QFLEX_GET_ARCH(log_inst)(cpu);
@@ -45,9 +46,10 @@ int qflex_singlestep(CPUState *cpu) {
     
     ret = qflex_cpu_step(cpu);
 
-    if(ret) {
-        // TODO How to handle this case?
-        // qemu_log("QFLEX: Singlestep went wrong\n"); 
+    uint64_t pc_ss_after = QFLEX_GET_ARCH(pc)(cpu);
+    if(pc_ss == pc_ss_after) {
+        printf("QFlex singlestep went wrong: ret = %i\n", ret);
+        qemu_log("QFlex singlestep went wrong: ret = %i\n", ret);
     }
 
     return ret;
