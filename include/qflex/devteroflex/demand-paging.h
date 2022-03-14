@@ -160,8 +160,10 @@ struct CPUState;
  * to make sure that QEMU has the latest page modifications
  * NOTE: Uses 'qflex_mem_trace' helper as trigger which is 
  * generated before memory instructions
+ *
+ * @return true if page in FPGA detected
  */ 
-void devteroflex_synchronize_page(struct CPUState *cpu, uint64_t vaddr, int type);
+bool devteroflex_synchronize_page(struct CPUState *cpu, uint64_t vaddr, int type);
 
 bool insert_entry_get_ppn(uint64_t hvp, uint64_t ipt_bits, uint64_t *ppn);
  

@@ -117,19 +117,19 @@ bool insert_entry_get_ppn(uint64_t hvp, uint64_t ipt_bits, uint64_t *ppn) {
     }
 }
 
-void devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
+bool devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
     uint64_t hvp = gva_to_hva(cpu, vaddr, type) & ~PAGE_MASK;
     if(hvp == -1) {
         // vaddr not mapped, no need to synchronize, might be IO
         // Let instruction execute normally
-        return;
+        return false;
     }
 
     uint64_t *synonyms_list_ipt;
     int list_size = ipt_check_synonyms(hvp, &synonyms_list_ipt);
     if(list_size <= 0) {
         // No synonyms detected
-        return;
+        return false;
     }
 
     // Synchronize if it's a store
@@ -148,7 +148,7 @@ void devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
     if(!synchronize) {
         // Neither a store, or any of the FPGA pages has store permissions
         qemu_log("QEMU detected page in FPGA and does not require synchronization.\n");
-        return;
+        return false;
     } else {
         qemu_log("QEMU detected page in FPGA and requires synchronization.\n");
     }
@@ -163,4 +163,5 @@ void devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
     free(synonyms_list_ipt);
     list_size = ipt_check_synonyms(hvp, &synonyms_list_ipt);
     assert(list_size <= 0); 
+    return true;
 }
