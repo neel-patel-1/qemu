@@ -189,15 +189,19 @@ void HELPER(qflex_post_mem)(CPUARMState* env, uint64_t addr, uint32_t type, uint
         if(type == MMU_DATA_STORE) {
             // here the page checking will be done.
             // it will evicted related pages.
-            qemu_log("Checking store: \n Target Addr: %lx, Size: %d \n", addr, size);
-            devteroflex_synchronize_page(CPU(env_archcpu(env)), addr, type);
+            bool has_synchronized = devteroflex_synchronize_page(CPU(env_archcpu(env)), addr, type);
+            if(has_synchronized) {
+                qemu_log("Checking store: \n Target Addr: %lx, Size: %d \n", addr, size);
+            }
 
             if(is_pair) {
                 uint64_t current_vpn = addr & ~PAGE_MASK;
                 uint64_t next_vpn = (addr + size) & ~PAGE_MASK;
                 if(next_vpn != current_vpn) {
-                    qemu_log("Checking store (cross page): \n Target Addr: %lx, Size: %d \n", addr, size);
-                    devteroflex_synchronize_page(CPU(env_archcpu(env)), addr + size, type);
+                    has_synchronized = devteroflex_synchronize_page(CPU(env_archcpu(env)), addr + size, type);
+                    if(has_synchronized) {
+                        qemu_log("Checking store (cross page): \n Target Addr: %lx, Size: %d \n", addr, size);
+                    }
                 }
             }
         }
