@@ -472,7 +472,9 @@ void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, bool i
     devteroflexConfig.pure_singlestep = pure_singlestep;
     if(fpga_physical_pages != -1) {
         assert(fpga_physical_pages == 4096 && "For simulator, we only support 16MiB DRAM.");
-        initFPGAContext(&c);
+        if(!pure_singlestep) {
+            initFPGAContext(&c);
+        }
         if (fpga_paddr_init_manager(fpga_physical_pages, c.base_address.page_base)) {
             perror("DevteroFlex: Couldn't init the stack for keepign track of free phyiscal pages in the fpga.\n");
             abort();
