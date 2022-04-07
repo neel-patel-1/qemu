@@ -4,11 +4,7 @@
 #include "qflex/qflex.h"
 #include "qflex/devteroflex/devteroflex.h"
 #include "qflex/devteroflex/demand-paging.h"
-#ifdef AWS_FPGA
-#include "qflex/devteroflex/aws/fpga_interface.h"
-#else
-#include "qflex/devteroflex/simulation/fpga_interface.h"
-#endif
+#include "qflex/devteroflex/fpga/fpga_interface.h"
 
 typedef struct {
     uint32_t bitmap;

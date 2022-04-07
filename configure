@@ -388,6 +388,7 @@ xen=${default_feature:+disabled}
 # QFLEX
 qflex="no"
 # DEVTEROFLEX
+devteroflex_dir="NONE"
 devteroflex="no"
 ######################
 
@@ -1210,7 +1211,7 @@ for opt do
 # DEVTEROFLEX
   --disable-devteroflex) devteroflex="no"
   ;;
-  --enable-devteroflex) 
+  --enable-devteroflex=*) devteroflex_dir="$optarg"
     qflex="yes"
     devteroflex="yes"
   ;;
@@ -3862,6 +3863,9 @@ fi
 if test "$devteroflex" = "yes" ; then
   echo "CONFIG_DEVTEROFLEX=y" >> $config_host_mak
   echo "LIBDEVTEROFLEX_LIBS=$libdevteroflex" >> $config_host_mak
+  echo "DEVTEROFLEX_DIR=" >> $config_host_mak
+	symlink "$devteroflex_dir" "$source_path/util/qflex/devteroflex/fpga" 
+	symlink "$devteroflex_dir" "$source_path/include/qflex/devteroflex/fpga" 
 fi
 ######################
 

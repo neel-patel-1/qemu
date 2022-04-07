@@ -37,10 +37,17 @@ QflexState_t qflexState = {
 int qflex_singlestep(CPUState *cpu) {
     int ret;
     qflex_update_exit_main_loop(false);
+    if(cpu->halted) {
+        if (!cpu_has_work(cpu)) {
+            return 0;
+        }
+        cpu->halted = 0;
+    }
 
     uint64_t pc_ss = QFLEX_GET_ARCH(pc)(cpu);
+    uint32_t asid = QFLEX_GET_ARCH(asid)(cpu);
     if(qflexState.log_inst) {
-        qemu_log("CPU[%i]: ", cpu->cpu_index); 
+        qemu_log("CPU[%i]:ASID[%x]:", cpu->cpu_index, asid); 
         QFLEX_GET_ARCH(log_inst)(cpu);
     }
     
@@ -48,8 +55,8 @@ int qflex_singlestep(CPUState *cpu) {
 
     uint64_t pc_ss_after = QFLEX_GET_ARCH(pc)(cpu);
     if(pc_ss == pc_ss_after) {
-        printf("QFlex singlestep went wrong: ret = %i\n", ret);
-        qemu_log("QFlex singlestep went wrong: ret = %i\n", ret);
+        printf("QFlex singlestep went wrong: ret = %x\n", ret);
+        qemu_log("QFlex singlestep went wrong: ret = %x\n", ret);
     }
 
     return ret;

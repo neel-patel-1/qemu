@@ -6,11 +6,7 @@
 #include "qemu/osdep.h"
 #include "qemu/thread.h"
 #include "qflex/qflex.h"
-#ifdef AWS_FPGA
-#include "qflex/devteroflex/aws/fpga_interface.h"
-#else
-#include "qflex/devteroflex/simulation/fpga_interface.h"
-#endif
+#include "qflex/devteroflex/fpga/fpga_interface.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE (4096LLU)

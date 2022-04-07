@@ -128,7 +128,6 @@ void *devteroflex_pack_protobuf(DevteroflexArchState *devteroflex, size_t *size)
     // devteroflex struct -> protobuf struct
     memcpy(state.xregs, devteroflex->xregs, sizeof(uint64_t) * 32);
     state.pc = devteroflex->pc;
-    state.sp = devteroflex->sp;
     state.nzcv = devteroflex->flags;
 
     // protobuf struct -> protobuf stream
@@ -161,7 +160,6 @@ void devteroflex_unpack_protobuf(DevteroflexArchState *devteroflex, void *stream
     // protobuf struct -> devteroflex struct
     memcpy(&devteroflex->xregs, &state->xregs, sizeof(uint64_t) * 32);
     devteroflex->pc = state->pc;
-    devteroflex->sp = state->sp;
     devteroflex->flags = state->nzcv;
 
     // Free protobuf struct
@@ -216,7 +214,6 @@ void devteroflex_trace_protobuf_pack(CommitTrace *trace,
     DevteroflexArchStateP *stateP = traceP->state;
     memcpy(stateP->xregs, state->xregs, sizeof(uint64_t) * stateP->n_xregs);
     stateP->pc = state->pc;
-    stateP->sp = state->sp;
     stateP->nzcv = state->flags;
 
     memcpy(traceP->inst_block_data.data, &(trace->inst_block_data), CACHE_BLOCK_SIZE);

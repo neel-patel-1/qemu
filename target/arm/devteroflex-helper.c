@@ -16,7 +16,6 @@ void devteroflex_pack_archstate(DevteroflexArchState *devteroflex, CPUState *cpu
 
     memcpy(&devteroflex->xregs,     &env->xregs, 32*sizeof(uint64_t));
     devteroflex->pc = env->pc;
-    devteroflex->sp = 0;
 
     uint64_t nzcv =
         ((env->CF)           ? 1 << ARCH_PSTATE_CF_MASK : 0) |
@@ -31,7 +30,6 @@ void devteroflex_unpack_archstate(CPUState *cpu, DevteroflexArchState *devterofl
 
     memcpy(&env->xregs, &devteroflex->xregs, 32*sizeof(uint64_t));
     env->pc = devteroflex->pc;
-    env->sp_el[QFLEX_GET_ARCH(el)(cpu)] = devteroflex->sp;
 
     uint32_t nzcv = devteroflex->flags;
     env->CF = (nzcv & ARCH_PSTATE_CF_MASK) ? 1 : 0;
