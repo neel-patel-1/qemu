@@ -390,6 +390,7 @@ qflex="no"
 # DEVTEROFLEX
 devteroflex_dir="NONE"
 devteroflex="no"
+devteroflex_aws_fpga_dir="NONE"
 ######################
 
 # parse CC options second
@@ -1215,6 +1216,8 @@ for opt do
     qflex="yes"
     devteroflex="yes"
   ;;
+  --enable-aws-fpga=*) devteroflex_aws_fpga_dir="$optarg"
+  ;;
 ######################
   # everything else has the same name in configure and meson
   --enable-* | --disable-*) meson_option_parse "$opt" "$optarg"
@@ -1498,6 +1501,7 @@ cat << EOF
   qflex           support for QFlex
 # DevteroFlex
   devteroflex     support for DevteroFlex
+  aws-fpga        build devteroflex using AWS FPGA, instead of the simulator. Passing the path to your folder aws-fpga/sdk/userspace.
 ######################
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -3341,6 +3345,12 @@ if test $devteroflex = "yes" ; then
   QEMU_CFLAGS="-DCONFIG_DEVTEROFLEX $QEMU_CFLAGS"
   libdevteroflex="-lprotobuf-c -lrt"
 fi
+
+if [ $devteroflex_aws_fpga_dir != "NONE" ]; then
+  QEMU_CFLAGS="-DAWS_FPGA -DCONFIG_LOGLEVEL=3 -I$devteroflex_aws_fpga_dir/include $QEMU_CFLAGS"
+  QEMU_LDFLAGS="-L$devteroflex_aws_fpga_dir/lib $QEMU_LDFLAGS"
+  libdevteroflex="-lfpga_mgmt $libdevteroflex"
+fi
 ##########################################
 
 
@@ -3866,6 +3876,10 @@ if test "$devteroflex" = "yes" ; then
   echo "DEVTEROFLEX_DIR=" >> $config_host_mak
 	symlink "$devteroflex_dir" "$source_path/util/qflex/devteroflex/fpga" 
 	symlink "$devteroflex_dir" "$source_path/include/qflex/devteroflex/fpga" 
+fi
+
+if [ $devteroflex_aws_fpga_dir != "NONE" ]; then
+  echo "DEVTEROFLEX_AWS_FPGA_LIBRARY=$devteroflex_aws_fpga_dir" >> $config_host_mak
 fi
 ######################
 

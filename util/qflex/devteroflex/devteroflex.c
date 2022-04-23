@@ -195,6 +195,7 @@ static void handle_evict_writeback(MessageFPGA * message) {
             for (int i = 0; i < PAGE_SIZE; ++i) {
                 if(page_in_qemu[i] != page_buffer[i]){
                     qemu_log("BYTE[%d]:QEMU[%x] =/= FPGA[%x] \n", i, page_in_qemu[i], page_buffer[i]);
+                    mismatched = true;
                 }
             }
             if(mismatched) {
@@ -466,10 +467,11 @@ void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, bool i
     devteroflexConfig.running = run;
     devteroflexConfig.is_debug = is_debug;
     devteroflexConfig.pure_singlestep = pure_singlestep;
+
     if(fpga_physical_pages != -1) {
-        assert(fpga_physical_pages == 4096 && "For simulator, we only support 16MiB DRAM.");
         if(!pure_singlestep) {
             initFPGAContext(&c);
+            assert(fpga_physical_pages == c.dram_size / 4096 && "Number of DRAM pages provided by the FPGAContext must match the input. ");
         }
         if (fpga_paddr_init_manager(fpga_physical_pages, c.ppage_base_addr)) {
             perror("DevteroFlex: Couldn't init the stack for keepign track of free phyiscal pages in the fpga.\n");
