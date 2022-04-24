@@ -3,7 +3,7 @@ FROM ubuntu:20.04
 
 # 1. install necessary library
 RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive apt install git build-essential ninja-build \
+    DEBIAN_FRONTEND=noninteractive apt install git build-essential ninja-build vim gdb \
     libglib2.0-dev libprotobuf-c-dev python3 pkg-config \
     libpixman-1-dev gnutls-bin -y
 
@@ -24,10 +24,9 @@ RUN git clone https://github.com/UlisesLuzius/qemu.git && \
     cd qemu && \
     git checkout armflex-6.2-dev && \
     git submodule update --init --recursive && \
-    ./configure --target-list=aarch64-softmmu \ 
+    ./configure --enable-debug --target-list=aarch64-softmmu \ 
     --enable-devteroflex=$(pwd)/../KnockoutKraken/regression/src/client \
     --enable-aws-fpga=$(pwd)/../aws-fpga/sdk/userspace/ && \
-    cd build && ninja && ninja install && \
-    cd ../.. && rm -rf qemu KnockoutKraken aws-fpga
+    cd build && ninja && ninja install
 
 
