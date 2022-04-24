@@ -66,7 +66,7 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
     assert(cpu->cpu_index == thid);
     assert(cpu_in_fpga(thid));
     cpu_pull_fpga(cpu->cpu_index);
-    transplantGetState(&c, thid, (uint64_t *) &state);
+    transplantGetState(&c, thid, &state);
 
     qemu_log("DevteroFlex:CPU[%i]:PC[0x%016lx]:transplant:EXCP[%i]:UNDEF:[%i]\n", thid, state.pc,
              FLAGS_GET_IS_EXCEPTION(state.flags)?1:0, FLAGS_GET_IS_UNDEF(state.flags)?1:0);
@@ -125,7 +125,7 @@ static void transplantBringBack(uint32_t pending) {
     {
         if(pending & (1 << cpu->cpu_index)) {
             qemu_log("DevteroFlex:CPU[%i]:Final Transplant FPGA->HOST\n", cpu->cpu_index);
-            transplantGetState(&c, cpu->cpu_index, (uint64_t *) &state);
+            transplantGetState(&c, cpu->cpu_index, &state);
             if(devteroflexConfig.is_debug){
                 if(devteroflex_compare_archstate(cpu, &state)) {
                     // Dangerous!!!
@@ -258,7 +258,7 @@ static void handle_page_fault(MessageFPGA *message) {
 
 static bool message_has_pending(MessageFPGA *msg) {
     if(mmuMsgHasPending(&c)) {
-        mmuMsgGetPending(&c, msg);
+        mmuMsgGet(&c, msg);
         return true;
     }
     return false;
