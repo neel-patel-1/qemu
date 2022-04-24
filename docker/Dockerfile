@@ -10,7 +10,7 @@ RUN apt update && \
 # 2. clone the Hardware repo
 RUN git clone https://github.com/parsa-epfl/KnockoutKraken.git && \
     cd KnockoutKraken && \
-    git checkout dev && \
+    git checkout for_qemu_build && \
     cd ..
 
 # 3. clone the AWS FPGA repo
