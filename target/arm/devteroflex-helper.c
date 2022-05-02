@@ -41,13 +41,14 @@ void devteroflex_unpack_archstate(CPUState *cpu, DevteroflexArchState *devterofl
 bool devteroflex_compare_archstate(const CPUState *cpu, DevteroflexArchState *devteroflex) {
     const CPUARMState *env = cpu->env_ptr;
 
+    bool hasMismatch = false;
     if(env->pc != devteroflex->pc) {
         qemu_log(
             "Mismatched register PC is detected. \n QEMU: %lx, FPGA: %lx \n", 
             env->pc,
             devteroflex->pc
         );
-        return true;
+        hasMismatch = true;
     }
 
     for(int i = 0; i < 32; ++i) {
@@ -58,13 +59,13 @@ bool devteroflex_compare_archstate(const CPUState *cpu, DevteroflexArchState *de
                 env->xregs[i],
                 devteroflex->xregs[i]
             );
-            return true;
+            hasMismatch = true;
         }
     }
     
     // we didn't compare the NZCV now.
 
-    return false;
+    return hasMismatch;
 }
 
 /** devteroflex_example_instrumentation
