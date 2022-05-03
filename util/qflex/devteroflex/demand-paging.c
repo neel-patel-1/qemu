@@ -99,6 +99,8 @@ bool page_fault_pending_run(uint64_t hvp) {
 bool insert_entry_get_ppn(uint64_t hvp, uint64_t ipt_bits, uint64_t *ppn) {
     int ret = ipt_add_entry(hvp, ipt_bits);
     if(ret == SYNONYM) {
+        *ppn = tpt_lookup(ipt_bits);      
+        printf("DevteorFlex:HVP[0x%016lx]:PPN:[0x%08lx]:Synonym\n", hvp, *ppn);
         return false;
     } else if (ret == PAGE) {
         if(!fpga_paddr_get(ppn)){

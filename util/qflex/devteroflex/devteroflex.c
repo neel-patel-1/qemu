@@ -289,11 +289,11 @@ void page_fault_return(uint64_t ipt_bits, uint64_t hvp, uint32_t thid) {
     uint32_t perm = IPT_GET_PERM(ipt_bits);
     uint64_t ppa = -1; // physical page address
     bool pushPage = insert_entry_get_ppn(hvp, ipt_bits, &ppa);
-    qemu_log("DevteroFlex:MMU:ASID[%lx]:GVA[0x%016lx]:HVA[0x%016lx]:PERM[%u]:PAGE FAULT RESPONSE\n", asid, gvpa, hvp, perm);
     if(pushPage) {
         // No synonym
         dramPagePush(&c, ppa, (void*) hvp);
     }
+    qemu_log("DevteroFlex:MMU:ASID[%lx]:GVA[0x%016lx]:HVA[0x%016lx]:PPN[0x%08lx]:PERM[%u]:PAGE FAULT RESPONSE\n", asid, gvpa, hvp, ppa, perm);
 
     MessageFPGA missReply;
     makeMissReply(perm, thid, asid, gvpa, ppa, &missReply);
