@@ -99,7 +99,7 @@ bool page_fault_pending_run(uint64_t hvp) {
 bool insert_entry_get_ppn(uint64_t hvp, uint64_t ipt_bits, uint64_t *ppn) {
     int ret = ipt_add_entry(hvp, ipt_bits);
     if(ret == SYNONYM) {
-        *ppn = tpt_lookup(ipt_bits);      
+        *ppn = spt_lookup(hvp);
         printf("DevteorFlex:HVP[0x%016lx]:PPN:[0x%08lx]:Synonym\n", hvp, *ppn);
         return false;
     } else if (ret == PAGE) {
@@ -108,6 +108,8 @@ bool insert_entry_get_ppn(uint64_t hvp, uint64_t ipt_bits, uint64_t *ppn) {
             perror("Ran out of physical pages in the FPGA, not supported forced evictions yet.");
             exit(EXIT_FAILURE);
         }
+        // keep it in the spt.
+        spt_add_entry(hvp, *ppn);
         return true;
     } else {
         perror("IPT Table error in adding entry");

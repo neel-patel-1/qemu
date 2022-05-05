@@ -213,6 +213,7 @@ static void handle_evict_writeback(MessageFPGA * message) {
     page_fault_pending_run(hvp);
     evict_notfiy_pending_clear(ipt_bits);
     ipt_evict(hvp, ipt_bits);
+    spt_remove_entry(hvp);
     tpt_remove_entry(ipt_bits);
     fpga_paddr_push(ppn);
 }
@@ -481,6 +482,8 @@ void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, bool i
         ipt_init();
         // Initialize the temporal page table.
         tpt_init();
+        // Initialize the shadow page table
+        spt_init();
 
         // In this case, the enable signal must be added.
         assert(devteroflexConfig.enabled && "When the page size is specified, you must enable the devteroflex! by adding `enabled=on` to the command options.");

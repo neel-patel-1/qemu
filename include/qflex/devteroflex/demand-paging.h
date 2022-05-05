@@ -55,9 +55,14 @@ int ipt_evict(uint64_t hvp, uint64_t ipt_bits);
 /* Check whenever a physical address has synonyms
  */
 int ipt_check_synonyms(uint64_t hvp, uint64_t **ipt_chain);
-/* Init inverted page table
+/* Init inverted page table (hvp -> gVAs)
  */
 void ipt_init(void);
+
+/* Store architectural register of ASID and Base Address of physical page for
+ * retranslating address later.
+ */
+void ipt_register_asid(uint64_t asid, uint64_t asid_reg);
 
 /**
  * @brief insert an entry to the temporal page table.
@@ -104,15 +109,58 @@ bool tpt_is_entry_exists(uint64_t ipt_bits);
 uint64_t *tpt_all_keys(uint64_t *count);
 
 /**
- * @brief initilize the temporal page table.
+ * @brief initilize the temporal page table. (gVA -> hVA)
  */
 void tpt_init(void);
 
 
-/* Store architectural register of ASID and Base Address of physical page for
- * retranslating address later.
+/**
+ * @brief initialize the shadown page table (hVA -> FPGA PPN)
  */
-void ipt_register_asid(uint64_t asid, uint64_t asid_reg);
+void spt_init(void);
+
+/**
+ * @brief check whether an hvp is allocated with an FPGA PPN.
+ * 
+ * @param hvp the given hypervisor virtual address.
+ * @return if such a mapping exists.
+ */
+bool spt_is_entry_exists(uint64_t hvp);
+
+/**
+ * @brief get the FPGA PPN with the given hvp.
+ * 
+ * @param hvp the given hypervisor virtual address.
+ * @return the FPGA physical PPN
+ * 
+ * @note will abort if the given hvp is not mapped to a specific FPGA PPN.
+ */
+uint64_t spt_lookup(uint64_t hvp);
+
+/**
+ * @brief remove the record mapping of a specific hvp from the temporal page table.
+ * 
+ * @param hvp the given hypervisor virtual address.
+ */
+void spt_remove_entry(uint64_t hvp);
+
+/**
+ * @brief add an mapping between a hypervisor va and an FPGA ppn.
+ * 
+ * @param hvp the hypervisor virtual address
+ * @param ppn the allocated FPGA ppn
+ */
+void spt_add_entry(uint64_t hvp, uint64_t ppn);
+
+/**
+ * @brief get all HVPs registed in the shadow page table.
+ * 
+ * @param count the number of elements of the return array will be placed in the variable.
+ * @return all the hvps in the table.
+ * 
+ * @note the caller has the responsibility to reclain the memory allocated for the return value.
+ */
+uint64_t *spt_all_keys(uint64_t *count);
 
 /* If an evicted page is modified, save pending eviction while waiting for writeback
  */
