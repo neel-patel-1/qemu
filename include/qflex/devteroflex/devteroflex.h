@@ -99,7 +99,7 @@ void devteroflex_unpack_archstate(CPUState *cpu, DevteroflexArchState *devterofl
  * 
  * @return true if any register mismatch is detected.
  */
-bool devteroflex_compare_archstate(const CPUState *cpu, DevteroflexArchState *devteroflex);
+bool devteroflex_compare_archstate(CPUState *cpu, DevteroflexArchState *devteroflex);
 
 /**
  * @brief devteroflex_get_load_addr

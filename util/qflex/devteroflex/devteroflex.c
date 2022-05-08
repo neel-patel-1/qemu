@@ -56,7 +56,7 @@ static bool run_debug(CPUState *cpu) {
     }
     if(devteroflex_is_running()) {
         cpu_push_fpga(cpu->cpu_index);
-        transplantSinglestep(&c, cpu->cpu_index, QFLEX_GET_ARCH(asid)(cpu), &state);
+        transplantPushAndSinglestep(&c, cpu->cpu_index, &state);
     }
     // End of debug mode
     return true;
@@ -95,28 +95,28 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
     // handle exception will change the state, so it
     if(devteroflex_is_running()) {
         cpu_push_fpga(cpu->cpu_index);
-        ipt_register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
         devteroflex_pack_archstate(&state, cpu);
+        ipt_register_asid(state.asid, QFLEX_GET_ARCH(asid_reg)(cpu));
 
-        transplantRegisterAndPush(&c, thid, QFLEX_GET_ARCH(asid)(cpu), &state);
         if(devteroflexConfig.is_debug) {
             // Ensure single instruction gets executed
-            transplantStopCPU(&c, thid);
+            transplantPushAndSinglestep(&c, thid, &state);
+        } else {
+            transplantPushAndStart(&c, thid, &state);
         }
-        transplantStart(&c, thid);
     }
 
 }
 
 static void transplantsRun(uint32_t pending) {
     CPUState *cpu;
-    transplantFreePending(&c, pending);
     CPU_FOREACH(cpu)
     {
         if(pending & (1 << cpu->cpu_index)) {
             transplantRun(cpu, cpu->cpu_index);
         }
     }
+    transplantFreePending(&c, pending);
 }
 
 static void transplantBringBack(uint32_t pending) {
@@ -144,15 +144,14 @@ static void transplantPushAllCpus(void) {
     CPUState *cpu;
     CPU_FOREACH(cpu) {
         cpu_push_fpga(cpu->cpu_index);
-        ipt_register_asid(QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(asid_reg)(cpu));
         devteroflex_pack_archstate(&state, cpu);
-        transplantRegisterAndPush(&c, cpu->cpu_index, QFLEX_GET_ARCH(asid)(cpu), &state);
+        ipt_register_asid(state.asid, QFLEX_GET_ARCH(asid_reg)(cpu));
 
         if(devteroflexConfig.is_debug) {
-            transplantStopCPU(&c, cpu->cpu_index);
+            transplantPushAndSinglestep(&c, cpu->cpu_index, &state);
+        } else {
+            transplantPushAndStart(&c, cpu->cpu_index, &state);
         }
-
-        transplantStart(&c, cpu->cpu_index);
     }
 }
 
