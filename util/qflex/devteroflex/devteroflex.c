@@ -67,6 +67,7 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
     assert(cpu_in_fpga(thid));
     cpu_pull_fpga(cpu->cpu_index);
     transplantGetState(&c, thid, &state);
+    transplantFreePending(&c, (1 << thid));
 
     qemu_log("DevteroFlex:CPU[%i]:PC[0x%016lx]:transplant:EXCP[%i]:UNDEF:[%i]\n", thid, state.pc,
              FLAGS_GET_IS_EXCEPTION(state.flags)?1:0, FLAGS_GET_IS_UNDEF(state.flags)?1:0);
@@ -116,16 +117,19 @@ static void transplantsRun(uint32_t pending) {
             transplantRun(cpu, cpu->cpu_index);
         }
     }
-    transplantFreePending(&c, pending);
 }
 
 static void transplantBringBack(uint32_t pending) {
     CPUState *cpu;
+    uint32_t thid = -1;
     CPU_FOREACH(cpu)
     {
-        if(pending & (1 << cpu->cpu_index)) {
+        thid = cpu->cpu_index;
+        assert(thid != -1);
+        if(pending & (1 << thid)) {
             qemu_log("DevteroFlex:CPU[%i]:Final Transplant FPGA->HOST\n", cpu->cpu_index);
-            transplantGetState(&c, cpu->cpu_index, &state);
+            transplantGetState(&c, thid, &state);
+            transplantFreePending(&c, 1 << thid);
             if(devteroflexConfig.is_debug){
                 if(devteroflex_compare_archstate(cpu, &state)) {
                     // Dangerous!!!
@@ -135,7 +139,7 @@ static void transplantBringBack(uint32_t pending) {
             } else {
                 devteroflex_unpack_archstate(cpu, &state);
             }
-            cpu_pull_fpga(cpu->cpu_index);
+            cpu_pull_fpga(thid);
         }
     }
 }
