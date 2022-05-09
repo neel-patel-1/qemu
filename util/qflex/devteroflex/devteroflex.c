@@ -357,13 +357,58 @@ void page_eviction_wait_complete(uint64_t *ipt_list, int count) {
     }
 }
 
-// Functions that control QEMU execution flow
 
+static void printPMUCounters(const FPGAContext *ctx){
+  uint64_t cyc = pmuTotalCycles(ctx);
+  qemu_log("Total cycles: %ld \n", cyc);
+  uint64_t cmt = pmuTotalCommitInstructions(ctx);
+  qemu_log("Total committed instructions: %ld \n", cmt);
+  qemu_log("IPC: %lf CPI: %lf \n", (double)(cmt) / cyc, (double)(cyc) / (double)(cmt));
+  qemu_log("----------\n");
+
+  const char *names[4] = {
+    "DCachePenalty:",
+    "TLBPenalty:",
+    "TransplantPenalty:",
+    "PageFaultPenalty:"
+  };
+
+  for(int idx = 0; idx < 4; ++idx){
+    uint16_t penalties[16];
+    assert(pmuReadCycleCounters(ctx, idx, penalties) == 0);
+    qemu_log("%s", names[idx]);
+    qemu_log("Raw: ");
+    for(int i = 0; i < 16; ++i){
+      qemu_log("%d ", penalties[i]);
+    }
+    qemu_log("\n");
+    uint32_t cnt_sum = 0;
+    uint32_t cnt_non_zero = 0;
+
+    if(idx == 2) {
+      // for the trapsplant back penalty, we should clear the one that is caused by the last transplant back. 
+      penalties[0] = 0;
+    }
+
+    for(int i = 0; i < 16; ++i){
+      if(penalties[i] != 0){
+        cnt_sum += penalties[i];
+        cnt_non_zero += 1;
+      }
+    }
+    if(cnt_non_zero != 0) qemu_log("Average: %lf \n", (double)(cnt_sum) / cnt_non_zero);
+    qemu_log("----------");
+  }
+}
+
+// Functions that control QEMU execution flow
 static int devteroflex_execution_flow(void) {
     MessageFPGA msg;
     uint32_t pending;
     CPUState *cpu;
     transplantPushAllCpus();
+    // open the cycle counter on PMU
+    pmuStartCounting(&c);
     while(1) {
         // Check and run all pending transplants
         transplantPending(&c, &pending);
@@ -399,6 +444,10 @@ static int devteroflex_execution_flow(void) {
             break;
         }
     }
+    // stop PMU counters
+    pmuStopCounting(&c);
+    // print the PMU summary
+    printPMUCounters(&c);
 
     return 0;
 }
