@@ -209,16 +209,25 @@ static void handle_evict_writeback(MessageFPGA * message) {
             // simply do nothing. 
             // However, we should never write the FPGA.
         }
-    } else {
-        dramPagePull(&c, ppn, (void *) hvp);
     }
 
+    ipt_evict(hvp, ipt_bits);
+    // We have to check whether there are other synonyms referring that page.
+    uint64_t *ipt_chain;
+    if(ipt_check_synonyms(hvp, &ipt_chain) != 0){
+        free(ipt_chain);
+    } else {
+        // no other synonyms is mapped to that page. We can delete the page from FPGA.
+        fpga_paddr_push(ppn);
+        spt_remove_entry(hvp);
+        if(!devteroflexConfig.is_debug){
+            // We can fetch the page now.
+            dramPagePull(&c, ppn, (void *) hvp);
+        }
+    }
     page_fault_pending_run(hvp);
     evict_notfiy_pending_clear(ipt_bits);
-    ipt_evict(hvp, ipt_bits);
-    spt_remove_entry(hvp);
     tpt_remove_entry(ipt_bits);
-    fpga_paddr_push(ppn);
 }
 
 static void handle_page_fault(MessageFPGA *message) {
