@@ -85,12 +85,16 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
 
     disable_cpu_comparison = true; // Disable comparison, because these instructions are not executed on DevteroFlex.
     // Execute the exception instruction
+    uint64_t pc_before_singlestep = QFLEX_GET_ARCH(pc)(cpu);
     qflex_singlestep(cpu);
     // continue until supervised instructions are runned.
     while(QFLEX_GET_ARCH(el)(cpu) != 0){
         qflex_singlestep(cpu);
     }
-
+    if(QFLEX_GET_ARCH(pc)(cpu) == pc_before_singlestep) {
+        qflex_singlestep(cpu);
+    }
+ 
     disable_cpu_comparison = false;
 
     // handle exception will change the state, so it
