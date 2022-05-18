@@ -44,11 +44,16 @@ static bool run_debug(CPUState *cpu) {
     } 
     qemu_log("DevteroFlex:CPU[%i]:Running debug check\n", cpu->cpu_index);
     // Singlestep and compare
+    uint64_t pc_before_singlestep = QFLEX_GET_ARCH(pc)(cpu);
     qflex_singlestep(cpu);
     // continue until supervised instructions are runned.
     while(QFLEX_GET_ARCH(el)(cpu) != 0){
         qflex_singlestep(cpu);
+        if(QFLEX_GET_ARCH(pc)(cpu) == pc_before_singlestep) {
+            qflex_singlestep(cpu);
+        }
     }
+
     if(devteroflex_compare_archstate(cpu, &state)) {
         // Dangerous!!!
         qemu_log("WARNING:DevteroFlex:CPU[%i]:An architecture state mismatch has been detected. Quitting QEMU now. \n", cpu->cpu_index);
@@ -90,9 +95,9 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
     // continue until supervised instructions are runned.
     while(QFLEX_GET_ARCH(el)(cpu) != 0){
         qflex_singlestep(cpu);
-    }
-    if(QFLEX_GET_ARCH(pc)(cpu) == pc_before_singlestep) {
-        qflex_singlestep(cpu);
+        if(QFLEX_GET_ARCH(pc)(cpu) == pc_before_singlestep) {
+            qflex_singlestep(cpu);
+        }
     }
  
     disable_cpu_comparison = false;
