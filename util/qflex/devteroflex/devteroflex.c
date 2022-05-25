@@ -45,6 +45,7 @@ static bool run_debug(CPUState *cpu) {
     qemu_log("DevteroFlex:CPU[%i]:Running debug check\n", cpu->cpu_index);
     // Singlestep and compare
     uint64_t pc_before_singlestep = QFLEX_GET_ARCH(pc)(cpu);
+    uint64_t asid_before_singlestep = QFLEX_GET_ARCH(asid)(cpu);
     qflex_singlestep(cpu);
     // continue until supervised instructions are runned.
     while(QFLEX_GET_ARCH(el)(cpu) != 0){
@@ -53,8 +54,15 @@ static bool run_debug(CPUState *cpu) {
             qflex_singlestep(cpu);
         }
     }
+    uint32_t asid_after_singlestep = QFLEX_GET_ARCH(asid)(cpu);
 
-    if(devteroflex_compare_archstate(cpu, &state)) {
+    if(asid_before_singlestep != asid_after_singlestep) {
+        printf("WARNING:DevteroFlex:Transplant:Something in the execution changed the ASID\n");
+        qemu_log("WARNING:DevteroFlex:Transplant:Something in the execution changed the ASID\n");
+        // Repack state
+        devteroflex_pack_archstate(&state, cpu);
+        ipt_register_asid(state.asid, QFLEX_GET_ARCH(asid_reg)(cpu));
+     } else if(devteroflex_compare_archstate(cpu, &state)) {
         // Dangerous!!!
         qemu_log("WARNING:DevteroFlex:CPU[%i]:An architecture state mismatch has been detected. Quitting QEMU now. \n", cpu->cpu_index);
         abort();
@@ -91,6 +99,7 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
     disable_cpu_comparison = true; // Disable comparison, because these instructions are not executed on DevteroFlex.
     // Execute the exception instruction
     uint64_t pc_before_singlestep = QFLEX_GET_ARCH(pc)(cpu);
+    uint64_t asid_before_singlestep = QFLEX_GET_ARCH(asid)(cpu);
     qflex_singlestep(cpu);
     // continue until supervised instructions are runned.
     while(QFLEX_GET_ARCH(el)(cpu) != 0){
@@ -99,7 +108,11 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
             qflex_singlestep(cpu);
         }
     }
- 
+    uint64_t asid_after_singlestep = QFLEX_GET_ARCH(asid)(cpu);
+    if(asid_before_singlestep != asid_after_singlestep) {
+        printf("WARNING:DevteroFlex:Transplant:Something in the execution changed the ASID\n");
+        qemu_log("WARNING:DevteroFlex:Transplant:Something in the execution changed the ASID\n");
+    }
     disable_cpu_comparison = false;
 
     // handle exception will change the state, so it
