@@ -52,8 +52,8 @@ static inline void qflex_mem_trace_cmds(CPUState *cs, uint64_t nop_op) {
 
 static inline void qflex_cmds(CPUState *cs, uint64_t nop_op) {
     switch(nop_op) {
-        case QFLEX_SINGLESTEP_START: qflex_singlestep_start(); break;
-        case QFLEX_SINGLESTEP_STOP: qflex_singlestep_stop(); break;
+        case QFLEX_SINGLESTEP_START: qflexState.singlestep = true; break;
+        case QFLEX_SINGLESTEP_STOP: qflexState.singlestep = false; break;
         case QFLEX_PRINT_ASID_TID:  qflex_print_state_asid_tid(cs); break;
         default: break;
     }
@@ -225,7 +225,7 @@ void HELPER(qflex_executed_instruction)(CPUARMState* env, uint64_t pc, int locat
                 log_target_disas(cs, pc, 4);
                 qemu_log_unlock(logfile);
             }
-            qflex_update_inst_done(true);
+            qflexState.inst_done = true;
             break;
         default: break;
     }

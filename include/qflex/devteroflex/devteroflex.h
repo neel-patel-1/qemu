@@ -38,13 +38,12 @@ static inline void devteroflex_start(void) {
     if(devteroflexConfig.enabled){
         devteroflexConfig.running = true;
         qemu_log("DEVTEROFLEX: Start detected.\n");
-        qflex_update_exit_main_loop(true);
+        qflexState.exit_main_loop = true;
     } else {
-        qemu_log("Warning: Devteroflex is not enabled. The instruction is ignored. \n");
+        qemu_log("Warning: Devteroflex is not enabled. The DEVTEROFLEX_START instruction is ignored. \n");
         qemu_loglevel |= CPU_LOG_TB_IN_ASM;
         qemu_loglevel |= CPU_LOG_INT;
     }
-    
 }
 
 static inline void devteroflex_stop(void) {
@@ -53,7 +52,7 @@ static inline void devteroflex_stop(void) {
         devteroflexConfig.running = false;
         qemu_log("DEVTEROFLEX: Stop detected.\n");
     } else {
-        qemu_log("Warning: Devteroflex is not enabled. The instruction is ignored. \n");
+        qemu_log("Warning: Devteroflex is not enabled. The DEVTEROFLEX_STOP instruction is ignored. \n");
         qemu_loglevel &= ~CPU_LOG_TB_IN_ASM;
         qemu_loglevel &= ~CPU_LOG_INT;
     }

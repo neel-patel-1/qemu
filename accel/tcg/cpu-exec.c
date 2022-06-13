@@ -754,8 +754,8 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
     qatomic_mb_set(&cpu_neg(cpu)->icount_decr.u16.high, 0);
 
 #ifdef CONFIG_QFLEX
-    if (qflex_is_exit_main_loop()) {
-       cpu->exception_index = EXCP_QFLEX_EXIT;
+    if (qflexState.exit_main_loop) {
+        cpu->exception_index = EXCP_QFLEX_EXIT;
         qemu_log("QFLEX: Catched exit loop request.\n");
         return true;
     }

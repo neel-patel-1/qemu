@@ -37,28 +37,6 @@ int qflex_adaptative_execution(CPUState *cpu);
  */
 int qflex_cpu_step(void *arg);
 
-/* Get and Setters for state flags and vars
- */
-static inline QflexState_t qflex_get_state(void)  { return qflexState; }
-static inline bool qflex_is_inst_done(void)       { return qflexState.inst_done; }
-static inline bool qflex_is_broke_loop(void)      { return qflexState.broke_loop; }
-static inline bool qflex_is_exit_main_loop(void)  { return qflexState.exit_main_loop; }
-static inline bool qflex_is_skip_interrupts(void)  { return qflexState.skip_interrupts; }
-
-static inline void qflex_update_inst_done(bool done) {
-    qflexState.inst_done = done; }
-static inline void qflex_update_broke_loop(bool broke) {
-    qflexState.broke_loop = broke; }
-static inline void qflex_update_exit_main_loop(bool exit) { 
-    qflexState.exit_main_loop = exit; }
-static inline void qflex_update_skip_interrupts(bool skip) { 
-    qflexState.skip_interrupts = skip; }
-
-static inline bool qflex_is_singlestep(void) { return qflexState.singlestep; }
-static inline void qflex_singlestep_start(void) {  qflexState.singlestep = true; }
-static inline void qflex_singlestep_stop(void) {  qflexState.singlestep = false; }
-
-
 /* Located in cpu-exec.c
  * Because QFLEX relies sometimes on added TB instrumentation
  * Flush already decoded TBs such that the extra TCG insts are generated

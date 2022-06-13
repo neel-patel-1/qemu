@@ -6,6 +6,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qnum.h"
+#include "hw/core/cpu.h"
 
 #include "qflex/qflex-hmp.h"
 #include "qflex/qflex.h"
@@ -38,16 +39,23 @@ void hmp_qflex_singlestep_start(Monitor *mon, const QDict *qdict) {
         monitor_printf(mon, "`singlestep` available only with `-d nochain`.");
         error |= 1;
     }
+    CPUState *cpu;
+    CPU_FOREACH(cpu) {
+        if(cpu->singlestep_enabled) {
+            monitor_printf(mon, "`singlestep` available only with `-singlestep`.");
+            error |= 1;
+        }
+    }
     if(error) return;
 
-    qflex_singlestep_start();
+    qflexState.singlestep = true;
 }
 
 void hmp_qflex_singlestep_stop(Monitor *mon, const QDict *qdict) {
     if(!qflexState.singlestep) {
        monitor_printf(mon, "singlestepping was not running");
     }
-    qflex_singlestep_stop();
+    qflexState.singlestep = false;
 }
 
 void hmp_qflex_mem_trace_start(Monitor *mon, const QDict *qdict) {

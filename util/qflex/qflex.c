@@ -38,7 +38,6 @@ QflexState_t qflexState = {
 
 static int qflex_singlestep_with_retry(CPUState *cpu, bool retry) {
     int ret = 0;
-    qflex_update_exit_main_loop(false);
     uint64_t pc_ss = QFLEX_GET_ARCH(pc)(cpu);
     uint32_t asid = QFLEX_GET_ARCH(asid)(cpu);
     uint64_t pc_ss_after;
@@ -84,6 +83,7 @@ int qflex_singlestep(CPUState *cpu) {
 }
 
 int qflex_adaptative_execution(CPUState *cpu) {
+    qflexState.exit_main_loop = false;
     while(1) {
 #ifdef CONFIG_DEVTEROFLEX
         if(devteroflex_is_running()) {
@@ -95,7 +95,7 @@ int qflex_adaptative_execution(CPUState *cpu) {
 #endif
             qflex_singlestep(cpu);
         }
-        else if(!qflex_is_exit_main_loop()) {
+        else if(!qflexState.exit_main_loop) {
             break;
         } 
     }

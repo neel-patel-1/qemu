@@ -51,6 +51,7 @@ static bool run_debug(CPUState *cpu) {
     while(QFLEX_GET_ARCH(el)(cpu) != 0){
         qflex_singlestep(cpu);
         if(QFLEX_GET_ARCH(pc)(cpu) == pc_before_singlestep) {
+            // Rexecute instruction after IRQ
             qflex_singlestep(cpu);
         }
     }
@@ -59,7 +60,7 @@ static bool run_debug(CPUState *cpu) {
     if(asid_before_singlestep != asid_after_singlestep) {
         printf("WARNING:DevteroFlex:Transplant:Something in the execution changed the ASID\n");
         qemu_log("WARNING:DevteroFlex:Transplant:Something in the execution changed the ASID\n");
-        // Repack state
+        // Repack state, IRQ did not return to original program
         devteroflex_pack_archstate(&state, cpu);
         ipt_register_asid(state.asid, QFLEX_GET_ARCH(asid_reg)(cpu));
      } else if(devteroflex_compare_archstate(cpu, &state)) {
@@ -503,12 +504,12 @@ static int qflex_singlestep_flow(void) {
 }
 
 static void devteroflex_prepare_singlestepping(void) {
-    CPUState *cpu;
-    qflex_update_exit_main_loop(false);
-    qflex_singlestep_start();
-    qflex_update_skip_interrupts(true);
+    qflexState.exit_main_loop = false;
+    qflexState.singlestep = true;
+    qflexState.skip_interrupts = true;
     qemu_loglevel |= CPU_LOG_INT; 
     qflex_mem_trace_start(-1, -1);
+    CPUState *cpu;
     CPU_FOREACH(cpu) {
         cpu_single_step(cpu, SSTEP_ENABLE);
         qatomic_mb_set(&cpu->exit_request, 0);
@@ -532,8 +533,8 @@ int devteroflex_singlestepping_flow(void) {
 
 void devteroflex_stop_full(void) {
     CPUState *cpu;
-    qflex_singlestep_stop();
-    qflex_update_skip_interrupts(false);
+    qflexState.singlestep = false;
+    qflexState.skip_interrupts = false;
     CPU_FOREACH(cpu) {
         cpu_single_step(cpu, 0);
     }

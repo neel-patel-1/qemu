@@ -273,7 +273,7 @@ static void *rr_cpu_thread_fn(void *arg)
         rr_wait_io_event();
         rr_deal_with_unplugged_cpus();
 #ifdef CONFIG_QFLEX
-        if(qflex_is_exit_main_loop()) {
+        if(qflexState.exit_main_loop) {
         	qflex_adaptative_execution(first_cpu);
         }
 #endif
