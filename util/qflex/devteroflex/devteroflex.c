@@ -68,7 +68,7 @@ static bool run_debug(CPUState *cpu) {
         qemu_log("WARNING:DevteroFlex:CPU[%i]:An architecture state mismatch has been detected. Quitting QEMU now. \n", cpu->cpu_index);
         abort();
     }
-    if(devteroflex_is_running()) {
+    if(devteroflexConfig.enabled && devteroflexConfig.running) {
         cpu_push_fpga(cpu->cpu_index);
         transplantPushAndSinglestep(&c, cpu->cpu_index, &state);
     }
@@ -117,7 +117,7 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
     disable_cpu_comparison = false;
 
     // handle exception will change the state, so it
-    if(devteroflex_is_running()) {
+    if(devteroflexConfig.enabled && devteroflexConfig.running) {
         cpu_push_fpga(cpu->cpu_index);
         devteroflex_pack_archstate(&state, cpu);
         ipt_register_asid(state.asid, QFLEX_GET_ARCH(asid_reg)(cpu));
@@ -449,7 +449,7 @@ static int devteroflex_execution_flow(void) {
         // Check and run all pending transplants
         transplantPending(&c, &pending);
         if((pending != 0)) {
-            if(devteroflex_is_running()) {
+            if(devteroflexConfig.enabled && devteroflexConfig.running) {
                 transplantsRun(pending);
             } else {
                 transplantBringBack(pending);
@@ -468,14 +468,14 @@ static int devteroflex_execution_flow(void) {
         }
 
         // If DevteroFlex stopped executing, pull all cpu's back
-        if(!devteroflex_is_running()) {
+        if(!(devteroflexConfig.enabled && devteroflexConfig.running)) {
             CPU_FOREACH(cpu) {
                 if(!cpu_in_fpga(cpu->cpu_index)) {
                     transplantStopCPU(&c, cpu->cpu_index);
                 }
             }
         }
-        if(!devteroflex_is_running() && running_cpus == 0) {
+        if(!(devteroflexConfig.enabled && devteroflexConfig.running) && running_cpus == 0) {
             // Done executing
             break;
         }
@@ -495,7 +495,7 @@ static int qflex_singlestep_flow(void) {
         CPU_FOREACH(cpu) {
             qflex_singlestep(cpu);
         }
-        if(!devteroflex_is_running()) {
+        if(!(devteroflexConfig.enabled && devteroflexConfig.running)) {
             break;
         }
     }

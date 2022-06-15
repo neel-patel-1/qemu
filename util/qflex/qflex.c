@@ -86,7 +86,7 @@ int qflex_adaptative_execution(CPUState *cpu) {
     qflexState.exit_main_loop = false;
     while(1) {
 #ifdef CONFIG_DEVTEROFLEX
-        if(devteroflex_is_running()) {
+        if(devteroflexConfig.enabled && devteroflexConfig.running) {
             devteroflex_singlestepping_flow();
         }
         else if (qflexState.singlestep) {

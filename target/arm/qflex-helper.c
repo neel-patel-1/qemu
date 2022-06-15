@@ -156,7 +156,7 @@ void HELPER(qflex_pre_mem)(CPUARMState* env, uint64_t addr, uint32_t type, uint3
     }
 
 #ifdef CONFIG_DEVTEROFLEX
-    if(devteroflex_is_enabled() && (!devteroflexConfig.is_debug || !devteroflex_is_running())) {
+    if(devteroflexConfig.enabled && (!devteroflexConfig.is_debug || !devteroflexConfig.running)) {
         // In debug mode, we only sync page after the operation is done.
         if(type != MMU_INST_FETCH) {
             devteroflex_synchronize_page(cs, addr, type);
@@ -185,7 +185,7 @@ void HELPER(qflex_pre_mem)(CPUARMState* env, uint64_t addr, uint32_t type, uint3
  */
 void HELPER(qflex_post_mem)(CPUARMState* env, uint64_t addr, uint32_t type, uint32_t size, uint32_t is_pair){
 #ifdef CONFIG_DEVTEROFLEX
-    if(devteroflex_is_running() && devteroflexConfig.is_debug) {
+    if(devteroflexConfig.enabled && devteroflexConfig.running && devteroflexConfig.is_debug) {
         if(type == MMU_DATA_STORE) {
             // here the page checking will be done.
             // it will evicted related pages.
