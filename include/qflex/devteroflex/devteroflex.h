@@ -25,13 +25,28 @@ typedef enum MemoryAccessType {
 typedef struct DevteroflexConfig {
     bool enabled;
     bool running;
-    bool is_debug;
+    int debug_mode;
     bool pure_singlestep;
+    int transplant_type;
 } DevteroflexConfig;
+
+typedef enum Transplant_t {
+    TRANS_CLEAR = 0,
+    TRANS_EXCP  = 1,
+    TRANS_UNDEF = 2,
+    TRANS_DEBUG = 3,
+    TRANS_UNKNOWN
+} Transplant_t;
+
+typedef enum DevteroFlexDebugMode_t {
+    no_debug    = 0,
+    no_mem_sync = 1,
+    mem_sync    = 2
+} DevteroFlexDebugMode_t;
 
 extern DevteroflexConfig devteroflexConfig;
 
-void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, bool is_emulation, bool pure_singlestep);
+void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, int debug_mode, bool pure_singlestep);
 
 static inline void devteroflex_start(void) {
     qflex_tb_flush();
@@ -129,4 +144,26 @@ bool devteroflex_get_ppage(CPUState *cpu, uint64_t addr, uint64_t access_type,  
 
 int devteroflex_singlestepping_flow(void);
 
+
+// Usefull flags on conditions to sync pages:
+
+static inline bool pre_mem_sync_page(void) {
+    bool normal_transplant = devteroflexConfig.transplant_type == TRANS_UNDEF || devteroflexConfig.transplant_type == TRANS_EXCP;
+    return devteroflexConfig.enabled && devteroflexConfig.running && normal_transplant;
+}
+
+static inline bool post_mem_sync_page(void) {
+    return devteroflexConfig.enabled && devteroflexConfig.running && devteroflexConfig.debug_mode == mem_sync && devteroflexConfig.transplant_type == TRANS_DEBUG;
+}
+
+static inline bool debug_cmp_mem_sync(void) {
+    return devteroflexConfig.debug_mode == mem_sync && devteroflexConfig.transplant_type == TRANS_DEBUG;
+}
+
+static inline bool debug_cmp_no_mem_sync(void) {
+    return devteroflexConfig.debug_mode == no_mem_sync && (
+        devteroflexConfig.transplant_type == TRANS_UNDEF || 
+        devteroflexConfig.transplant_type == TRANS_EXCP ||
+        devteroflexConfig.transplant_type == TRANS_CLEAR);
+}
 #endif /* DEVTEROFLEX_H */

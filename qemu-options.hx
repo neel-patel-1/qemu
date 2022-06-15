@@ -5440,7 +5440,7 @@ DEF("devteroflex", HAS_ARG, QEMU_OPTION_devteroflex, \
     QEMU_ARCH_ARM)
 
 SRST
-``-devteroflex  dram-pages=N,debug=on|off,enable=on|off,[pure-singlestep=on|off]``
+``-devteroflex  dram-pages=N,debug=off|no_mem_sync|mem_sync,enable=on|off,[pure-singlestep=on|off]``
     Enable DevteroFlex, FPGA Accelerated instrumentation platform.
 
     ``dram-pages=N``
@@ -5448,7 +5448,7 @@ SRST
 
     ``enable=on``
  
-    ``debug=on``
+    ``debug=off|no_mem_sync|mem_sync``
 
     ``pure-singlestep=on``
     Only advances using `qflex_singlestep` function

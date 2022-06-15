@@ -17,15 +17,14 @@
 #include <glib.h>
 
 DevteroflexConfig devteroflexConfig = { 
-    .is_debug = false,
+    .debug_mode = no_debug,
     .enabled = false,
     .running = false,
+    .transplant_type = TRANS_CLEAR,
 };
 
 static FPGAContext c;
 static DevteroflexArchState state;
-
-
 
 // List of cpus in the FPGA
 static uint32_t running_cpus;
@@ -33,15 +32,13 @@ static uint32_t running_cpus;
 #define cpu_push_fpga(cpu) (running_cpus |= 1 << cpu)
 #define cpu_pull_fpga(cpu) (running_cpus &= ~(1 << cpu))
 
-// Close result comparison for some cores when they run transplant.
-static bool disable_cpu_comparison = false;
-
-
 static bool run_debug(CPUState *cpu) {
     if (FLAGS_GET_IS_EXCEPTION(state.flags) | FLAGS_GET_IS_UNDEF(state.flags)) {
         // Singlestep like normal execution
         return false;
     } 
+    devteroflexConfig.transplant_type = TRANS_DEBUG;
+
     qemu_log("DevteroFlex:CPU[%i]:Running debug check\n", cpu->cpu_index);
     // Singlestep and compare
     uint64_t pc_before_singlestep = QFLEX_GET_ARCH(pc)(cpu);
@@ -87,7 +84,7 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
              FLAGS_GET_IS_EXCEPTION(state.flags)?1:0, FLAGS_GET_IS_UNDEF(state.flags)?1:0);
  
     // In debug mode, we should advance the QEMU by one step and do comparison.
-    if(devteroflexConfig.is_debug) {
+    if(devteroflexConfig.debug_mode) {
         if(run_debug(cpu)) {
             // Succesfully ran the debug routine
             return; 
@@ -97,7 +94,16 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
         devteroflex_unpack_archstate(cpu, &state);
     }
 
-    disable_cpu_comparison = true; // Disable comparison, because these instructions are not executed on DevteroFlex.
+    if(FLAGS_GET_IS_EXCEPTION(state.flags)) {
+        devteroflexConfig.transplant_type = TRANS_EXCP;
+    } else if (FLAGS_GET_IS_UNDEF(state.flags)) {
+        devteroflexConfig.transplant_type = TRANS_UNDEF;
+    } else {
+        devteroflexConfig.transplant_type = TRANS_UNKNOWN;
+        printf("Unknown reason of transplant");
+        exit(1);
+    }
+
     // Execute the exception instruction
     uint64_t pc_before_singlestep = QFLEX_GET_ARCH(pc)(cpu);
     uint64_t asid_before_singlestep = QFLEX_GET_ARCH(asid)(cpu);
@@ -114,7 +120,7 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
         printf("WARNING:DevteroFlex:Transplant:Something in the execution changed the ASID\n");
         qemu_log("WARNING:DevteroFlex:Transplant:Something in the execution changed the ASID\n");
     }
-    disable_cpu_comparison = false;
+    devteroflexConfig.transplant_type = TRANS_CLEAR;
 
     // handle exception will change the state, so it
     if(devteroflexConfig.enabled && devteroflexConfig.running) {
@@ -122,7 +128,7 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
         devteroflex_pack_archstate(&state, cpu);
         ipt_register_asid(state.asid, QFLEX_GET_ARCH(asid_reg)(cpu));
 
-        if(devteroflexConfig.is_debug) {
+        if(devteroflexConfig.debug_mode) {
             // Ensure single instruction gets executed
             transplantPushAndSinglestep(&c, thid, &state);
         } else {
@@ -153,7 +159,7 @@ static void transplantBringBack(uint32_t pending) {
             qemu_log("DevteroFlex:CPU[%i]:Final Transplant FPGA->HOST\n", cpu->cpu_index);
             transplantGetState(&c, thid, &state);
             transplantFreePending(&c, 1 << thid);
-            if(devteroflexConfig.is_debug){
+            if(devteroflexConfig.debug_mode){
                 if(devteroflex_compare_archstate(cpu, &state)) {
                     // Dangerous!!!
                     qemu_log("WARNING:DevteroFlex:CPU[%i]:An architecture state mismatch has been detected. Quitting QEMU now. \n", cpu->cpu_index);
@@ -174,7 +180,7 @@ static void transplantPushAllCpus(void) {
         devteroflex_pack_archstate(&state, cpu);
         ipt_register_asid(state.asid, QFLEX_GET_ARCH(asid_reg)(cpu));
 
-        if(devteroflexConfig.is_debug) {
+        if(devteroflexConfig.debug_mode) {
             transplantPushAndSinglestep(&c, cpu->cpu_index, &state);
         } else {
             transplantPushAndStart(&c, cpu->cpu_index, &state);
@@ -211,39 +217,35 @@ static void handle_evict_writeback(MessageFPGA * message) {
 
     uint64_t hvp = tpt_lookup(ipt_bits);
  
-    qemu_log("DevteroFlex:MMU:ASID[%x]:VA[0x%016lx]:PERM[%lu]:WRITE BACK\n", asid, gvp, perm);
-    if(devteroflexConfig.is_debug) {
-        if(!disable_cpu_comparison){
-            // Compare DevteroFlex modified page with QEMU
-            dramPagePull(&c, ppn, (void *)&page_buffer);
-            uint8_t *page_in_qemu = (uint8_t *)hvp;
-            bool mismatched = false;
-            for (int i = 0; i < PAGE_SIZE; ++i) {
-                if(page_in_qemu[i] != page_buffer[i]){
-                    qemu_log("BYTE[%d]:QEMU[%x] =/= FPGA[%x] \n", i, page_in_qemu[i], page_buffer[i]);
-                    mismatched = true;
-                }
+    qemu_log("DevteroFlex:MMU:ASID[%x]:VA[0x%016lx]:PERM[%lu]:PPN[%08lx]:WRITE BACK\n", asid, gvp, perm, ppn);
+    if(debug_cmp_mem_sync() || debug_cmp_no_mem_sync()) {
+        qemu_log("Comparing writeback:");
+        // Compare DevteroFlex modified page with QEMU
+        dramPagePull(&c, ppn, (void *)&page_buffer);
+        uint8_t *page_in_qemu = (uint8_t *) hvp;
+        bool mismatched = false;
+        for (int i = 0; i < PAGE_SIZE; ++i) {
+            if(page_in_qemu[i] != page_buffer[i]) {
+                qemu_log("BYTE[%d]:QEMU[%x] =/= FPGA[%x] \n", i, page_in_qemu[i], page_buffer[i]);
+                mismatched = true;
             }
-            if(mismatched) {
-                qemu_log("ERROR:Page mismatch\n");
-                abort();
-            }
-        } else {
-            // simply do nothing. 
-            // However, we should never write the FPGA.
+        }
+        if(mismatched) {
+            qemu_log("ERROR:Page mismatch\n");
+            abort();
         }
     }
 
     ipt_evict(hvp, ipt_bits);
     // We have to check whether there are other synonyms referring that page.
     uint64_t *ipt_chain;
-    if(ipt_check_synonyms(hvp, &ipt_chain) != 0){
+    if(ipt_check_synonyms(hvp, &ipt_chain) != 0) {
         free(ipt_chain);
     } else {
         // no other synonyms is mapped to that page. We can delete the page from FPGA.
         fpga_paddr_push(ppn);
         spt_remove_entry(hvp);
-        if(!devteroflexConfig.is_debug){
+        if(!devteroflexConfig.debug_mode){
             // We can fetch the page now.
             dramPagePull(&c, ppn, (void *) hvp);
         }
@@ -547,11 +549,12 @@ void devteroflex_stop_full(void) {
     //qflex_mem_trace_stop();
 }
 
-void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, bool is_debug, bool pure_singlestep) {
+void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, int debug_mode, bool pure_singlestep) {
     devteroflexConfig.enabled = enabled;
     devteroflexConfig.running = run;
-    devteroflexConfig.is_debug = is_debug;
+    devteroflexConfig.debug_mode = debug_mode;
     devteroflexConfig.pure_singlestep = pure_singlestep;
+    printf("DevteroFlex settings: enabled[%i]:run[%i]:fpga_phys_pages[%lu]:debug_mode[%i]:pure_singlestep[%i]\n", enabled, run, fpga_physical_pages, debug_mode, pure_singlestep);
 
     if(fpga_physical_pages != -1) {
         if(!pure_singlestep) {
