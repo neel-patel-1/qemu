@@ -37,7 +37,6 @@ static bool run_debug(CPUState *cpu) {
         // Singlestep like normal execution
         return false;
     } 
-    devteroflexConfig.transplant_type = TRANS_DEBUG;
 
     qemu_log("DevteroFlex:CPU[%i]:Running debug check\n", cpu->cpu_index);
     // Singlestep and compare
@@ -65,6 +64,7 @@ static bool run_debug(CPUState *cpu) {
         qemu_log("WARNING:DevteroFlex:CPU[%i]:An architecture state mismatch has been detected. Quitting QEMU now. \n", cpu->cpu_index);
         abort();
     }
+
     if(devteroflexConfig.enabled && devteroflexConfig.running) {
         cpu_push_fpga(cpu->cpu_index);
         transplantPushAndSinglestep(&c, cpu->cpu_index, &state);
@@ -85,6 +85,7 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
  
     // In debug mode, we should advance the QEMU by one step and do comparison.
     if(devteroflexConfig.debug_mode) {
+        devteroflexConfig.transplant_type = TRANS_DEBUG;
         if(run_debug(cpu)) {
             // Succesfully ran the debug routine
             return; 
@@ -120,7 +121,6 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
         printf("WARNING:DevteroFlex:Transplant:Something in the execution changed the ASID\n");
         qemu_log("WARNING:DevteroFlex:Transplant:Something in the execution changed the ASID\n");
     }
-    devteroflexConfig.transplant_type = TRANS_CLEAR;
 
     // handle exception will change the state, so it
     if(devteroflexConfig.enabled && devteroflexConfig.running) {
@@ -144,6 +144,7 @@ static void transplantsRun(uint32_t pending) {
     {
         if(pending & (1 << cpu->cpu_index)) {
             transplantRun(cpu, cpu->cpu_index);
+            devteroflexConfig.transplant_type = TRANS_CLEAR;
         }
     }
 }
@@ -219,7 +220,8 @@ static void handle_evict_writeback(MessageFPGA * message) {
  
     qemu_log("DevteroFlex:MMU:ASID[%x]:VA[0x%016lx]:PERM[%lu]:PPN[%08lx]:WRITE BACK\n", asid, gvp, perm, ppn);
     if(debug_cmp_mem_sync() || debug_cmp_no_mem_sync()) {
-        qemu_log("Comparing writeback:");
+        assert(!(devteroflexConfig.debug_mode == no_mem_sync && devteroflexConfig.transplant_type == TRANS_DEBUG));
+        qemu_log("      - Comparing page\n");
         // Compare DevteroFlex modified page with QEMU
         dramPagePull(&c, ppn, (void *)&page_buffer);
         uint8_t *page_in_qemu = (uint8_t *) hvp;
