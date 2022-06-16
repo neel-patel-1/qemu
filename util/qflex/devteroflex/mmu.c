@@ -8,7 +8,7 @@
 void devteroflex_mmu_flush_by_va_asid(uint64_t va, uint64_t asid) {
   if(!devteroflexConfig.enabled) return;
 
-  qemu_log("Flushing Devteroflex TLB: VA: %lx, ASID: %lx \n", va, asid);
+  qemu_log("Devteroflex:QEMU MMU:FLUSH:ASID[%lx]:VA[%016lx]\n", asid, va);
   for(int i = 0; i < 3; ++i){
     uint64_t to_evicted = IPT_COMPRESS(va, asid, i);
     if(tpt_is_entry_exists(to_evicted)) {
@@ -24,7 +24,7 @@ void devteroflex_mmu_flush_by_va_asid(uint64_t va, uint64_t asid) {
 void devteroflex_mmu_flush_by_asid(uint64_t asid) {
   if(!devteroflexConfig.enabled) return;
 
-  qemu_log("Flushing Devteroflex TLB: ASID: %lx \n", asid);
+  qemu_log("Devteroflex:QEMU MMU:FLUSH:ASID[%lx]\n", asid);
   // 1. get all entries in the tpt.
   uint64_t ele = 0;
   uint64_t *keys = tpt_all_keys(&ele);
@@ -69,7 +69,7 @@ void devteroflex_mmu_flush_by_asid(uint64_t asid) {
 void devteroflex_mmu_flush_by_va(uint64_t va) {
   if(!devteroflexConfig.enabled) return;
 
-  qemu_log("Flushing Devteroflex TLB: VA: %lx \n", va);
+  qemu_log("Devteroflex:QEMU MMU:TLB FLUSH:VA[%016lx]\n", va);
   // 1. get all entries in the tpt.
   uint64_t ele = 0;
   uint64_t *keys = tpt_all_keys(&ele);
@@ -113,6 +113,8 @@ void devteroflex_mmu_flush_by_va(uint64_t va) {
 
 void devteroflex_mmu_flush_by_hva_asid(uint64_t hva, uint64_t asid) {
   if(!devteroflexConfig.enabled) return;
+
+  qemu_log("Devteroflex:QEMU MMU:TLB FLUSH:ASID[%016lx]:HVA[%016lx]\n", asid, hva);
 
   // 1. query the IPT.
   uint64_t *ipt_synonyms;
@@ -159,6 +161,8 @@ void devteroflex_mmu_flush_by_hva_asid(uint64_t hva, uint64_t asid) {
 void devteroflex_mmu_flush_by_hva(uint64_t hva) {
   if(!devteroflexConfig.enabled) return;
 
+  qemu_log("Devteroflex:QEMU MMU:TLB FLUSH:HVA[%016lx]\n", hva);
+
   // 1. query the IPT.
   uint64_t *ipt_synonyms;
   uint64_t ele = ipt_check_synonyms(hva, &ipt_synonyms);
@@ -180,7 +184,8 @@ void devteroflex_mmu_flush_by_hva(uint64_t hva) {
 void devteroflex_mmu_flush_all(void) {
   if(!devteroflexConfig.enabled) return;
 
-  qemu_log("Flushing Devteroflex TLB: ALL \n");
+  qemu_log("Devteroflex:QEMU MMU:TLB FLUSH:ALL\n");
+
   // 1. get all entries in the tpt.
   uint64_t ele = 0;
   uint64_t *keys = tpt_all_keys(&ele);
@@ -188,7 +193,6 @@ void devteroflex_mmu_flush_all(void) {
   if(ele == 0){
     return;
   }
-  // 4. do flushing.
 
   // 4. do flushing.
   for(int i = 0; i < ele; i++) {
