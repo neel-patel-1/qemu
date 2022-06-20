@@ -87,9 +87,9 @@ void hmp_qflex_mem_trace_log_stats(Monitor *mon, const QDict *qdict) {
 #ifdef CONFIG_DEVTEROFLEX
 #include "qflex/devteroflex/devteroflex.h"
 #include "qflex/devteroflex/custom-instrumentation.h"
-void hmp_devteroflex_start(Monitor *mon, const QDict *qdict) {
-    // TODO: This is really dangerous because the page number is initialized to -1. Not sure what you are doing.
-    devteroflex_init(true, true, -1, false, false);
+void hmp_devteroflex_fast_forward_set(Monitor *mon, const QDict *qdict) {
+    size_t target = qdict_get_int(qdict, "target");
+    devteroflex_config_fast_forward(target);
 }
 
 void hmp_devteroflex_gen_example(Monitor *mon, const QDict *qdict) {

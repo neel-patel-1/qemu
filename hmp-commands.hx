@@ -1841,30 +1841,16 @@ ERST
 
 #ifdef CONFIG_DEVTEROFLEX
     {
-        .name       = "devteroflex-start",
-        .args_type  = "",
-        .params     = "",
-        .help       = "start devteroflex",
-        .cmd        = hmp_devteroflex_start,
+        .name       = "devteroflex-fast-forward-set",
+        .args_type  = "target:i",
+        .params     = "target",
+        .help       = "set fast forward number of insts",
+        .cmd        = hmp_devteroflex_fast_forward_set,
     },
 
 SRST
-``devteroflex-start``
-  start devteroflex.
-ERST
-
-    {
-        .name       = "devteroflex-gen-verification-start",
-        .args_type  = "nb_insn:i",
-        .params     = "nb_insn",
-        .help       = "start tracing of state and modified pages",
-        .cmd        = hmp_devteroflex_gen_verification_start,
-    },
-
-SRST
-``devteroflex-gen-verification-start`` *nb_insn*
-  Run state tracing for *nb_insn*, this state can be used by
-  the Chisel verification infrastructure to test for correctness.
+``devteroflex-fast-forward-set`` *target*
+  Set amount of instruction *target* to run after start before binding FPGA.
 ERST
 
     {

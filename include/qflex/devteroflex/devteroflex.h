@@ -22,12 +22,21 @@ typedef enum MemoryAccessType {
 #define MemoryAccessType
 #endif
 
+typedef struct DevteroflexFastForward {
+    bool enabled;
+    bool running;
+    uint64_t icount_target;
+    uint64_t icount_curr;
+} DevteroflexFastForward;
+
 typedef struct DevteroflexConfig {
     bool enabled;
     bool running;
     int debug_mode;
     bool pure_singlestep;
     int transplant_type;
+    uint64_t icount;
+    DevteroflexFastForward fast_forward;
 } DevteroflexConfig;
 
 typedef enum Transplant_t {
@@ -35,6 +44,7 @@ typedef enum Transplant_t {
     TRANS_EXCP  = 1,
     TRANS_UNDEF = 2,
     TRANS_DEBUG = 3,
+    TRANS_ICOUNT = 4,
     TRANS_UNKNOWN
 } Transplant_t;
 
@@ -55,11 +65,17 @@ void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, int de
 static inline void devteroflex_start(void) {
     qflex_tb_flush();
     if(devteroflexConfig.enabled){
-        devteroflexConfig.running = true;
-        qemu_log("DEVTEROFLEX: Start detected.\n");
-        qflexState.exit_main_loop = true;
+        if(!devteroflexConfig.fast_forward.enabled) {
+            devteroflexConfig.running = true;
+            qflexState.exit_main_loop = true;
+            qemu_log("DEVTEROFLEX: Start detected.\n");
+        } else {
+            devteroflexConfig.fast_forward.running = true;
+            qemu_log("DEVTEROFLEX: Fast forward: %lu insts\n", devteroflexConfig.fast_forward.icount_target);
+        }
     } else {
-        qemu_log("Warning: Devteroflex is not enabled. The DEVTEROFLEX_START instruction is ignored. \n");
+        qemu_log("Warning: Devteroflex is not enabled. The DEVTEROFLEX_START instruction is ignored. We will still print icount values since start\n");
+        devteroflexConfig.fast_forward.running = true;
         qemu_loglevel |= CPU_LOG_TB_IN_ASM;
         qemu_loglevel |= CPU_LOG_INT;
     }
@@ -69,6 +85,7 @@ static inline void devteroflex_stop(void) {
     qflex_tb_flush();
     if(devteroflexConfig.enabled){
         devteroflexConfig.running = false;
+        printf("DEVTEROFLEX: Stop detected.\n");
         qemu_log("DEVTEROFLEX: Stop detected.\n");
     } else {
         qemu_log("Warning: Devteroflex is not enabled. The DEVTEROFLEX_STOP instruction is ignored. \n");
@@ -152,8 +169,9 @@ int devteroflex_singlestepping_flow(void);
 // Usefull flags on conditions to sync pages:
 
 static inline bool pre_mem_sync_page(void) {
-    bool normal_transplant = devteroflexConfig.transplant_type == TRANS_UNDEF || devteroflexConfig.transplant_type == TRANS_EXCP;
-    return devteroflexConfig.enabled && devteroflexConfig.running && normal_transplant;
+    bool transplant_sync = devteroflexConfig.enabled && devteroflexConfig.running && (devteroflexConfig.transplant_type == TRANS_UNDEF || devteroflexConfig.transplant_type == TRANS_EXCP || devteroflexConfig.transplant_type == TRANS_ICOUNT);
+    bool post_run_sync = devteroflexConfig.enabled && !devteroflexConfig.running;
+    return transplant_sync || post_run_sync;
 }
 
 static inline bool post_mem_sync_page(void) {
@@ -168,6 +186,16 @@ static inline bool debug_cmp_no_mem_sync(void) {
     return devteroflexConfig.debug_mode == no_mem_sync && (
         devteroflexConfig.transplant_type == TRANS_UNDEF || 
         devteroflexConfig.transplant_type == TRANS_EXCP ||
+        devteroflexConfig.transplant_type == TRANS_ICOUNT ||
         devteroflexConfig.transplant_type == TRANS_CLEAR);
 }
+
+void devteroflex_config_fast_forward(uint64_t target);
+
+/**
+ * @brief This mirrors `icount_update` but instead of taking the TCG executed, we take Devteroflex counters
+ */
+void icount_update_devteroflex_executed(CPUState *cpu, uint64_t executed);
+void devteroflex_icount_update(uint64_t executed);
+
 #endif /* DEVTEROFLEX_H */

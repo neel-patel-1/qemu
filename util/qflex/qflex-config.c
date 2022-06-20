@@ -68,6 +68,10 @@ QemuOptsList qemu_devteroflex_opts = {
             .name = "pure-singlestep",
             .type = QEMU_OPT_BOOL,
         },
+        {
+            .name = "target",
+            .type = QEMU_OPT_NUMBER,
+        },
         { /* end of list */ }
     },
 };
@@ -76,6 +80,7 @@ static void devteroflex_configure(QemuOpts *opts, Error **errp) {
     bool enabled = qemu_opt_get_bool(opts, "enabled", false);
     uint64_t fpga_dram_size = qemu_opt_get_number(opts, "dram-pages", -1);
     const char *debug_mode_str = qemu_opt_get(opts, "debug");
+    uint64_t target = qemu_opt_get_number(opts, "target", 0);
     int debug_mode = no_debug;
     if(!debug_mode_str) {
         debug_mode = no_debug;
@@ -88,6 +93,9 @@ static void devteroflex_configure(QemuOpts *opts, Error **errp) {
     } else {
         fprintf(stderr, "Unknown debug argument:`%s, please pick 'no_debug', 'mem_sync', 'no_mem_sync'\n", debug_mode_str);
         exit(1);
+    }
+    if(target > 0) {
+        devteroflex_config_fast_forward(target);
     }
     bool pure_singlestep = qemu_opt_get_bool(opts, "pure-singlestep", false);
     devteroflex_init(enabled, false, fpga_dram_size, debug_mode, pure_singlestep);

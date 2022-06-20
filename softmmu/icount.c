@@ -41,6 +41,10 @@
 #include "sysemu/cpu-throttle.h"
 #include "timers-state.h"
 
+#ifdef CONFIG_DEVTEROFLEX
+#include "qflex/devteroflex/devteroflex.h"
+#endif
+
 /*
  * ICOUNT: Instruction Counter
  *
@@ -91,6 +95,9 @@ static void icount_update_locked(CPUState *cpu)
 
     qatomic_set_i64(&timers_state.qemu_icount,
                     timers_state.qemu_icount + executed);
+#ifdef CONFIG_DEVTEROFLEX
+    devteroflex_icount_update(executed);
+#endif
 }
 
 /*
@@ -106,6 +113,19 @@ void icount_update(CPUState *cpu)
     seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                          &timers_state.vm_clock_lock);
 }
+
+#ifdef CONFIG_DEVTEROFLEX
+void icount_update_devteroflex_executed(CPUState *cpu, uint64_t executed) {
+    seqlock_write_lock(&timers_state.vm_clock_seqlock,
+                       &timers_state.vm_clock_lock);
+    cpu->icount_budget -= executed;
+    devteroflex_icount_update(executed);
+    qatomic_set_i64(&timers_state.qemu_icount,
+                    timers_state.qemu_icount + executed);
+    seqlock_write_unlock(&timers_state.vm_clock_seqlock,
+                         &timers_state.vm_clock_lock);
+}
+#endif
 
 static int64_t icount_get_raw_locked(void)
 {

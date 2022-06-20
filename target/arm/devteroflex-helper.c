@@ -19,6 +19,9 @@ void devteroflex_pack_archstate(DevteroflexArchState *devteroflex, CPUState *cpu
     devteroflex->asid = QFLEX_GET_ARCH(asid)(cpu);
     FLAGS_SET_NZCV(devteroflex->flags, QFLEX_GET_ARCH(nzcv)(cpu));
 
+    devteroflex->icount = devteroflexConfig.icount;
+    devteroflex->icountExecuted = 0;
+    devteroflex->icountBudget = cpu->icount_budget;
 }
 
 void devteroflex_unpack_archstate(CPUState *cpu, DevteroflexArchState *devteroflex) {
@@ -33,6 +36,8 @@ void devteroflex_unpack_archstate(CPUState *cpu, DevteroflexArchState *devterofl
     uint32_t new_pstate = (cpu_pstate & ~(0xF << 28)) | (nzcv << 28);
     pstate_write(env, new_pstate);
 
+    devteroflex->icount = devteroflexConfig.icount;
+    icount_update_devteroflex_executed(cpu, devteroflex->icountExecuted);
 }
 
 bool devteroflex_compare_archstate(CPUState *cpu, DevteroflexArchState *devteroflex) {

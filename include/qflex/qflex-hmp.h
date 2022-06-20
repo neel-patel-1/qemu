@@ -12,7 +12,7 @@ void hmp_qflex_mem_trace_end(Monitor *mon, const QDict *qdict);
 void hmp_qflex_mem_trace_log_stats(Monitor *mon, const QDict *qdict);
 
 #ifdef CONFIG_DEVTEROFLEX
-void hmp_devteroflex_start(Monitor *mon, const QDict *qdict);
+void hmp_devteroflex_fast_forward_set(Monitor *mon, const QDict *qdict);
 void hmp_devteroflex_gen_example(Monitor *mon, const QDict *qdict);
 void hmp_devteroflex_stop_full(Monitor *mon, const QDict *qdict);
 #endif
