@@ -170,9 +170,6 @@ void evict_notify_pending_add(uint64_t ipt_bits, uint64_t hvp);
 void evict_notfiy_pending_clear(uint64_t ipt_bits);
 
 // These three functions are there to manage page fault, and address conflicts
-/* Send a page fault response, if thid = -1, then no fpga core will restart executing
- */
-void page_fault_return(uint64_t ipt_bits, uint64_t hvp, uint32_t thid);
 /* Check whenever the target physical address is waiting for an eviction
  * writeback
  */
@@ -184,13 +181,6 @@ void page_fault_pending_add(uint64_t ipt_bits, uint64_t hvp, uint32_t thid);
  * @return true if there was pending requests mapping to that hvp
  */
 bool page_fault_pending_run(uint64_t hvp);
-
-/* Evict page from the FPGA for synchronizing
- */
-void page_eviction_request(uint64_t ipt_bits);
-/* Wait for all evictions in the list to complete
- */
-void page_eviction_wait_complete(uint64_t *ipt_list, int count);
 
 /**
  * FPGA free physical addreses are managed by the host.

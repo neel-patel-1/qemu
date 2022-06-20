@@ -4,7 +4,7 @@
 #include "qflex/qflex.h"
 #include "qflex/devteroflex/devteroflex.h"
 #include "qflex/devteroflex/demand-paging.h"
-#include "qflex/devteroflex/fpga/fpga_interface.h"
+#include "qflex/devteroflex/devteroflex-mmu.h"
 
 typedef struct {
     uint32_t bitmap;
@@ -87,7 +87,7 @@ bool page_fault_pending_run(uint64_t hvp) {
             pendingRequests.bitmap &= ~mask;
             qemu_log("DevteroFlex:MMU:PA[0x%016lx]:SYNONYM PENDING\n", hvp);
             tpt_add_entry(pendingRequests.ipt_bits[i], pendingRequests.hvp[i]);
-            page_fault_return(pendingRequests.ipt_bits[i], pendingRequests.hvp[i], pendingRequests.thid[i]);
+            send_page_fault_return(pendingRequests.ipt_bits[i], pendingRequests.hvp[i], pendingRequests.thid[i]);
         }
     }
     return has_pending;
@@ -155,9 +155,9 @@ bool devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
 
     
     for(int entry = 0; entry < list_size; entry++) {
-        page_eviction_request(synonyms_list_ipt[entry]);
+        send_page_evict_req(synonyms_list_ipt[entry]);
     }
-    page_eviction_wait_complete(synonyms_list_ipt, list_size);
+    wait_evict_req_complete(synonyms_list_ipt, list_size);
 
     // Assert all synonyms have been evicted
     free(synonyms_list_ipt);

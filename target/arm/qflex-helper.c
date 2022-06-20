@@ -11,7 +11,6 @@
 
 #ifdef CONFIG_DEVTEROFLEX
 #include "qflex/devteroflex/devteroflex.h"
-#include "qflex/devteroflex/verification.h"
 #include "qflex/devteroflex/demand-paging.h"
 #endif /* CONFIG_DEVTEROFLEX */
 
@@ -167,14 +166,6 @@ void HELPER(qflex_pre_mem)(CPUARMState* env, uint64_t addr, uint32_t type, uint3
                     devteroflex_synchronize_page(cs, addr + size, type);
                 }
             }
-        }
-    }
-
-    if(gen_verification()) {
-        if(type == MMU_INST_FETCH) {
-            gen_verification_add_state(cs, addr);
-        } else {
-            gen_verification_add_mem(cs, addr);
         }
     }
 #endif

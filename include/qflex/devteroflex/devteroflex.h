@@ -45,6 +45,10 @@ typedef enum DevteroFlexDebugMode_t {
 } DevteroFlexDebugMode_t;
 
 extern DevteroflexConfig devteroflexConfig;
+extern FPGAContext c;
+extern MessageFPGA message_buffer[256];
+extern uint64_t message_buffer_curr_entry;
+
 
 void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, int debug_mode, bool pure_singlestep);
 

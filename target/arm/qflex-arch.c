@@ -44,7 +44,7 @@ uint64_t QFLEX_GET_ARCH(tid)(CPUState *cs) {
     }
 }
 
-int QFLEX_GET_ARCH(reg)(CPUState *cs, int reg_index) {
+uint64_t QFLEX_GET_ARCH(reg)(CPUState *cs, int reg_index) {
     assert(reg_index < 32);
     return ENV(cs)->xregs[reg_index];
 }
@@ -76,4 +76,17 @@ void qflex_print_state_asid_tid(CPUState* cs) {
              env->cp15.contextidr_el[0], env->cp15.contextidr_el[1], env->cp15.contextidr_el[2], env->cp15.contextidr_el[3],
              env->cp15.tpidr_el[0], env->cp15.tpidr_el[1], env->cp15.tpidr_el[2], env->cp15.tpidr_el[3],
              env->cp15.tpidruro_ns, env->cp15.tpidrro_el[0]);
+}
+
+void qflex_dump_archstate_log(CPUState *cpu) {
+    qemu_log("ASID[0x%08lx]:PC[0x%016lx]\n", QFLEX_GET_ARCH(asid)(cpu), QFLEX_GET_ARCH(pc)(cpu));
+    for (int reg = 0; reg < 32; reg++) {
+        qemu_log("X%02i[%016lx]\n", reg, QFLEX_GET_ARCH(reg)(cpu, reg));
+    }
+}
+
+uint32_t QFLEX_GET_ARCH(nzcv)(CPUState *cs) {
+    CPUARMState *env = cs->env_ptr;
+    uint32_t nzcv = (pstate_read(env) >> 28) & 0xF;
+    return nzcv;
 }

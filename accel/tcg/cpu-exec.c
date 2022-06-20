@@ -53,8 +53,6 @@
 
 #ifdef CONFIG_DEVTEROFLEX
 #include "qflex/devteroflex/devteroflex.h"
-#include "qflex/devteroflex/verification.h"
-
 #endif
 #endif
 
@@ -485,11 +483,6 @@ void cpu_exec_step_atomic(CPUState *cpu)
         }
         assert_no_pages_locked();
         qemu_plugin_disable_mem_helpers(cpu);
-#ifdef CONFIG_DEVTEROFLEX
-        if(gen_verification()) {
-            gen_verification_inst_cancelled();
-        }
-#endif
     }
 
     /*
@@ -760,11 +753,6 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
         return true;
     }
 #endif
-    /* TODO: Get rid of non application critical interrupts by instructing the OS
-     * and pinning applications, currently this is a hack that could break functional
-     * correctness if the application itself requires interrupts.
-     * This follow execution path similar tor qemu's internal singlestepping.
-     */
     if (unlikely(qatomic_read(&cpu->interrupt_request))) {
         int interrupt_request;
         qemu_mutex_lock_iothread();
@@ -966,11 +954,6 @@ int cpu_exec(CPUState *cpu)
         qemu_plugin_disable_mem_helpers(cpu);
 
         assert_no_pages_locked();
-#ifdef CONFIG_DEVTEROFLEX
-        if(gen_verification()) {
-            gen_verification_inst_cancelled();
-        }
-#endif
     }
 
     /* if an exception is pending, we execute it here */
