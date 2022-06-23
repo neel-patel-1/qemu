@@ -24,7 +24,7 @@ RUN git clone https://github.com/UlisesLuzius/qemu.git && \
     cd qemu && \
     git checkout armflex-6.2-dev && \
     git submodule update --init --recursive && \
-    ./configure --enable-debug --target-list=aarch64-softmmu \ 
+    ./configure --target-list=aarch64-softmmu \ 
     --enable-devteroflex=$(pwd)/../KnockoutKraken/regression/src/client \
     --enable-aws-fpga=$(pwd)/../aws-fpga/sdk/userspace/ && \
     cd build && ninja && ninja install
