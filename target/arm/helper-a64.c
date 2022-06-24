@@ -1095,7 +1095,7 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
     }
 #endif
 
-    HELPER(qflex_pre_mem)(env, vaddr, MMU_DATA_STORE, blocklen, 0);
+    HELPER(qflex_pre_mem)(env, vaddr, MMU_DATA_STORE, blocklen);
     memset(mem, 0, blocklen);
-    HELPER(qflex_post_mem)(env, vaddr, MMU_DATA_STORE, blocklen, 0);
+    HELPER(qflex_post_mem)(env, vaddr, MMU_DATA_STORE, blocklen);
 }
