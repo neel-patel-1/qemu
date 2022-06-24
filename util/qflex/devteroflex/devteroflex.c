@@ -394,6 +394,9 @@ void devteroflex_config_fast_forward(uint64_t target) {
 }
 
 void devteroflex_icount_update(uint64_t executed) {
+    if (executed == 0) 
+        return;
+
     // Fast forward management
     if(devteroflexConfig.enabled) {
         assert(!(devteroflexConfig.running && (devteroflexConfig.fast_forward.enabled && devteroflexConfig.fast_forward.running)));
@@ -415,7 +418,7 @@ void devteroflex_icount_update(uint64_t executed) {
         }
     } else if (!devteroflexConfig.enabled && devteroflexConfig.fast_forward.running) {
         // Counting when running with normal icount but no DevteroFlex attached
-        qemu_log("Devteroflex:icount:exec[%09lu]:no devteroflex\n", devteroflexConfig.icount);
         devteroflexConfig.icount += executed;
+        qemu_log("Devteroflex:icount:exec[%09lu]:no devteroflex\n", devteroflexConfig.icount);
     }
 }
