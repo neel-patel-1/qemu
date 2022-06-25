@@ -123,7 +123,7 @@ void HELPER(qflex_pre_mem)(CPUARMState* env, uint64_t addr, uint32_t type, uint3
     CPUState *cs = CPU(env_archcpu(env));
     qflex_log_mask(QFLEX_LOG_LDST, "[MEM]CPU%u:%u:0x%016"PRIx64"\n", cs->cpu_index, type, addr);
 
-    assert((size <= 16 || size == (4 << env_archcpu(env)->dcz_blocksize)) && "We never expect a load / store whose operand size is larger than 64bit.\n"
+    assert((size <= 32 || size == (4 << env_archcpu(env)->dcz_blocksize)) && "We never expect a load / store whose operand size is larger than 128 bit (Q register).\n"
                                                                           "Or ZVA which evicts a cache block\n");
     
     int inst;
