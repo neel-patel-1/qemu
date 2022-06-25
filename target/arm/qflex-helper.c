@@ -161,9 +161,9 @@ void HELPER(qflex_pre_mem)(CPUARMState* env, uint64_t addr, uint32_t type, uint3
         if(type != MMU_INST_FETCH) {
             devteroflex_synchronize_page(cs, addr, type);
             uint64_t current_vpn = addr & ~PAGE_MASK;
-            uint64_t next_vpn = (addr + size) & ~PAGE_MASK;
+            uint64_t next_vpn = (addr + size - 1) & ~PAGE_MASK;
             if(next_vpn != current_vpn) {
-                devteroflex_synchronize_page(cs, addr + size, type);
+                devteroflex_synchronize_page(cs, next_vpn, type);
             }
         }
     }
@@ -184,11 +184,11 @@ void HELPER(qflex_post_mem)(CPUARMState* env, uint64_t addr, uint32_t type, uint
                 qemu_log("Checking store: \n Target Addr: %lx, Size: %d \n", addr, size);
             }
             uint64_t current_vpn = addr & ~PAGE_MASK;
-            uint64_t next_vpn = (addr + size) & ~PAGE_MASK;
+            uint64_t next_vpn = (addr + size - 1) & ~PAGE_MASK;
             if(next_vpn != current_vpn) {
-                has_synchronized = devteroflex_synchronize_page(CPU(env_archcpu(env)), addr + size, type);
+                has_synchronized = devteroflex_synchronize_page(CPU(env_archcpu(env)), next_vpn, type);
                 if(has_synchronized) {
-                    qemu_log("Checking store (cross page): \n Target Addr: %lx, Size: %d \n", addr, size);
+                    qemu_log("Checking store (cross page): \n Target Addr: %lx, Size: %d \n", next_vpn, size);
                 }
             }
         }
