@@ -64,6 +64,10 @@ bool devteroflex_compare_archstate(CPUState *cpu, DevteroflexArchState *devterof
         hasMismatch = true;
     }
 
+    if(hasMismatch) {
+        qflex_dump_archstate_log(cpu);
+    }
+
     return hasMismatch;
 }
 
