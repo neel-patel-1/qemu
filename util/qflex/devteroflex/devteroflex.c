@@ -68,6 +68,11 @@ static bool run_debug(CPUState *cpu) {
         abort();
     }
 
+    if(FLAGS_GET_IS_ICOUNT_DEPLETED(state.flags)) {
+        // Continue in QEMU instead of executing in the FPGA
+        return false;
+    }
+
     if(devteroflexConfig.enabled && devteroflexConfig.running) {
         cpu_push_fpga(cpu->cpu_index);
         transplantPushAndSinglestep(&c, cpu->cpu_index, &state);
