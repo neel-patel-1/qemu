@@ -41,6 +41,15 @@ static bool run_debug(CPUState *cpu) {
         return false;
     } 
 
+    if(FLAGS_GET_IS_ICOUNT_DEPLETED(state.flags)) {
+        qemu_log("DevteroFlex:DEBUG:icount depleted detected\n");
+        qemu_log("     - Should be true:%i\n", (state.icountExecuted == state.icountBudget));
+    }
+
+    if(state.icountExecuted != 1) {
+        qemu_log("DevteroFlex:DEUBG:icountExecuted %u instructions instead of 1\n", state.icountExecuted);
+    }
+
     qemu_log("DevteroFlex:CPU[%i]:Running debug check\n", cpu->cpu_index);
     // Singlestep and compare
     uint64_t pc_before_singlestep = QFLEX_GET_ARCH(pc)(cpu);
@@ -109,6 +118,8 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
         devteroflexConfig.transplant_type = TRANS_UNDEF;
     } else if (FLAGS_GET_IS_ICOUNT_DEPLETED(state.flags)) {
         devteroflexConfig.transplant_type = TRANS_ICOUNT;
+        qemu_log("DevteroFlex:DEBUG:icount depleted detected\n");
+        qemu_log("     - Should be true:%i\n", (state.icountExecuted == state.icountBudget));
     } else {
         devteroflexConfig.transplant_type = TRANS_UNKNOWN;
         printf("Unknown reason of transplant");

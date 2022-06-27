@@ -71,6 +71,7 @@ void handle_evict_writeback(MessageFPGA* message) {
         }
         if(mismatched) {
             qemu_log("ERROR:Page mismatch\n");
+            qflex_dump_archstate_log(qemu_get_cpu(0)); // TODO Get correct PC in care of multithreading
             abort();
         }
     }
