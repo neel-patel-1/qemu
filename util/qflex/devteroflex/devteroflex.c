@@ -84,6 +84,7 @@ static bool run_debug(CPUState *cpu) {
 
     if(devteroflexConfig.enabled && devteroflexConfig.running) {
         cpu_push_fpga(cpu->cpu_index);
+        state.icountExecuted = 0; // Reset executed flag
         transplantPushAndSinglestep(&c, cpu->cpu_index, &state);
     }
     // End of debug mode
