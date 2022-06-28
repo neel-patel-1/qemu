@@ -49,7 +49,7 @@ void handle_evict_writeback(MessageFPGA* message) {
     uint64_t gvp = message->vpn << 12;
     uint64_t perm = message->EvictNotif.permission;
     uint32_t asid = message->asid;
-    uint64_t ppn = message->EvictNotif.ppn << 12;
+    uint64_t ppn = ((uint64_t) message->EvictNotif.ppn) << 12;
 
     uint64_t ipt_bits = IPT_COMPRESS(gvp, asid, perm);
 
