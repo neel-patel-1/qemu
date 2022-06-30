@@ -35,6 +35,14 @@ static uint32_t running_cpus;
 #define cpu_push_fpga(cpu) (running_cpus |= 1 << cpu)
 #define cpu_pull_fpga(cpu) (running_cpus &= ~(1 << cpu))
 
+static void checkAsserts(int region) {
+    uint32_t assertsRaised = assertFailedGet(&c, 0);
+    if(assertsRaised) {
+        qemu_log("Region:%i:assertions failed: %x", region, assertsRaised);
+        abort();
+    }
+}
+
 static bool run_debug(CPUState *cpu) {
     if (FLAGS_GET_IS_EXCEPTION(state.flags) | FLAGS_GET_IS_UNDEF(state.flags)) {
         // Singlestep like normal execution
@@ -98,8 +106,8 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
     transplantGetState(&c, thid, &state);
     transplantFreePending(&c, (1 << thid));
 
-    qemu_log("DevteroFlex:CPU[%i]:PC[0x%016lx]:transplant:EXCP[%i]:UNDEF:[%i]\n", thid, state.pc,
-             FLAGS_GET_IS_EXCEPTION(state.flags)?1:0, FLAGS_GET_IS_UNDEF(state.flags)?1:0);
+    qemu_log("DevteroFlex:CPU[%i]:PC[0x%016lx]:transplant:EXCP[%i]:UNDEF:[%i]:icount[%i]:FLAGS[%lu]\n", thid, state.pc,
+             FLAGS_GET_IS_EXCEPTION(state.flags)?1:0, FLAGS_GET_IS_UNDEF(state.flags)?1:0, FLAGS_GET_IS_ICOUNT_DEPLETED(state.flags)?1:0, state.flags);
  
     // In debug mode, we should advance the QEMU by one step and do comparison.
     if(devteroflexConfig.debug_mode) {
@@ -180,8 +188,11 @@ static void transplantBringBack(uint32_t pending) {
         assert(thid != -1);
         if(pending & (1 << thid)) {
             qemu_log("DevteroFlex:CPU[%i]:Final Transplant FPGA->HOST\n", cpu->cpu_index);
+            checkAsserts(0);
             transplantGetState(&c, thid, &state);
             transplantFreePending(&c, 1 << thid);
+            checkAsserts(1);
+
             if(devteroflexConfig.debug_mode){
                 if(devteroflex_compare_archstate(cpu, &state)) {
                     // Dangerous!!!
@@ -275,13 +286,17 @@ static int devteroflex_execution_flow(void) {
         // Run all pending messages from a synchronization
         if(message_buffer_curr_entry > 0) {
             for(int message_idx = 0; message_idx < message_buffer_curr_entry; message_idx++) {
+                checkAsserts(2);
                 mmu_message_run(message_buffer[message_idx]);
+                checkAsserts(3);
             }
             message_buffer_curr_entry = 0;
         }
         // Check and run all pending messages
         while(mmu_has_pending(&msg)) {
+            checkAsserts(4);
             mmu_message_run(msg);
+            checkAsserts(5);
         }
 
         // If DevteroFlex stopped executing, pull all cpu's back
@@ -384,7 +399,9 @@ void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, int de
     if(fpga_physical_pages != -1) {
         if(!pure_singlestep) {
             initFPGAContext(&c);
-            assert(fpga_physical_pages == c.dram_size / 4096 && "Number of DRAM pages provided by the FPGAContext must match the input. ");
+            if(fpga_physical_pages == c.dram_size / 4096) {
+                perror("WARNING:Number of DRAM pages provided by the FPGAContext should match the input.\n");
+            }
         }
         if (fpga_paddr_init_manager(fpga_physical_pages, c.ppage_base_addr)) {
             perror("DevteroFlex: Couldn't init the stack for keepign track of free phyiscal pages in the fpga.\n");
