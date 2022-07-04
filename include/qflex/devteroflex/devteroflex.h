@@ -198,4 +198,6 @@ void devteroflex_config_fast_forward(uint64_t target);
 void icount_update_devteroflex_executed(CPUState *cpu, uint64_t executed);
 void devteroflex_icount_update(uint64_t executed);
 
+void checkAsserts(int region);
+
 #endif /* DEVTEROFLEX_H */

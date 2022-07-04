@@ -35,10 +35,11 @@ static uint32_t running_cpus;
 #define cpu_push_fpga(cpu) (running_cpus |= 1 << cpu)
 #define cpu_pull_fpga(cpu) (running_cpus &= ~(1 << cpu))
 
-static void checkAsserts(int region) {
+void checkAsserts(int region) {
     uint32_t assertsRaised = assertFailedGet(&c, 0);
     if(assertsRaised) {
-        qemu_log("Region:%i:assertions failed: %x", region, assertsRaised);
+        qemu_log("Region:%i:assertions failed: %x\n", region, assertsRaised);
+        printf("Region:%i:assertions failed: %x\n", region, assertsRaised);
         abort();
     }
 }
@@ -82,6 +83,12 @@ static bool run_debug(CPUState *cpu) {
      } else if(devteroflex_compare_archstate(cpu, &state)) {
         // Dangerous!!!
         qemu_log("WARNING:DevteroFlex:CPU[%i]:An architecture state mismatch has been detected. Quitting QEMU now. \n", cpu->cpu_index);
+        checkAsserts(8);
+        uint32_t pending = 0;
+        transplantPending(&c, &pending);
+        if(pending) {
+            transplantGetState(&c, cpu->cpu_index, &state);
+        }
         abort();
     }
 
@@ -91,8 +98,10 @@ static bool run_debug(CPUState *cpu) {
     }
 
     if(devteroflexConfig.enabled && devteroflexConfig.running) {
+        // transplantPending(&c, &pending);
         cpu_push_fpga(cpu->cpu_index);
         state.icountExecuted = 0; // Reset executed flag
+        // transplantPushAndStart(&c, cpu->cpu_index, &state);
         transplantPushAndSinglestep(&c, cpu->cpu_index, &state);
     }
     // End of debug mode
