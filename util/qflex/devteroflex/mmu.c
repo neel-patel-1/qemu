@@ -104,15 +104,25 @@ void handle_page_fault(MessageFPGA *message) {
     CPUState *cpu = qemu_get_cpu(thid);
     // find the highest permission of a data page
     uint64_t hvp = -1;
-    if (perm == MMU_DATA_LOAD) {
-        hvp = gva_to_hva(cpu, gvp, MMU_DATA_STORE);
-        if(hvp == -1) 
-            hvp = gva_to_hva(cpu, gvp, MMU_DATA_LOAD);
-        else
-            perm = MMU_DATA_STORE; // give R/W permission
+    if(perm == MMU_INST_FETCH) {
+      perm = MMU_INST_FETCH;
+      hvp = gva_to_hva(cpu, gvp, MMU_INST_FETCH);
+    } else if (perm == MMU_DATA_STORE) {
+      perm = MMU_DATA_STORE;
+      hvp = gva_to_hva(cpu, gvp, MMU_DATA_STORE);
     } else {
-        hvp = gva_to_hva(cpu, gvp, perm);
+      perm = MMU_DATA_STORE; // give R/W permission
+      hvp = gva_to_hva(cpu, gvp, MMU_DATA_STORE);
+      if (hvp == -1) {
+        perm = MMU_INST_FETCH; // give R/X permission
+        hvp = gva_to_hva(cpu, gvp, MMU_INST_FETCH);
+        if (hvp == -1) {
+          perm = MMU_DATA_LOAD; // give R permission
+          hvp = gva_to_hva(cpu, gvp, MMU_DATA_LOAD);
+        }
+      }
     }
+
     uint64_t ipt_bits = IPT_COMPRESS(gvp, asid, perm);
     qemu_log("DevteroFlex:MMU:CPU[%i]:ASID[%x]:VA[0x%016lx]:PERM[%lu]:PAGE FAULT\n", thid, asid, gvp, perm);
     if(hvp == -1) {
