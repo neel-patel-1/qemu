@@ -155,7 +155,7 @@ bool devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
 
     
     for(int entry = 0; entry < list_size; entry++) {
-        send_page_evict_req(synonyms_list_ipt[entry]);
+        send_page_evict_req(synonyms_list_ipt[entry], type == INST_FETCH);
     }
     wait_evict_req_complete(synonyms_list_ipt, list_size);
 

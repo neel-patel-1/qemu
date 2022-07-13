@@ -161,13 +161,13 @@ void send_page_fault_return(uint64_t ipt_bits, uint64_t hvp, uint32_t thid) {
     mmuMsgSend(&c, &missReply);
 }
 
-void send_page_evict_req(uint64_t ipt_bits) {
+void send_page_evict_req(uint64_t ipt_bits, bool flush_instruction_cache) {
     uint64_t gvp = IPT_GET_VA(ipt_bits);
     uint64_t asid = IPT_GET_ASID(ipt_bits);
 
     qemu_log("DevteroFlex:MMU:ASID[%lx]:VA[0x%016lx]:PAGE FORCE EVICTION\n", asid, gvp);
     MessageFPGA evictRequest;
-    makeEvictRequest(asid, gvp, &evictRequest);
+    makeEvictRequest(asid, gvp, flush_instruction_cache, true, &evictRequest);
     mmuMsgSend(&c, &evictRequest);
 }
 
@@ -231,7 +231,8 @@ void devteroflex_mmu_flush_by_va_asid(uint64_t va, uint64_t asid) {
     uint64_t to_evicted = IPT_COMPRESS(va, asid, i);
     if(tpt_is_entry_exists(to_evicted)) {
         // do simple page eviction.
-      send_page_evict_req(to_evicted);
+        // both TLBs are shotdown because the TLB flushing is rare.
+      send_page_evict_req(to_evicted, true);
       wait_evict_req_complete(&to_evicted, 1);
 
       break;
@@ -277,7 +278,7 @@ void devteroflex_mmu_flush_by_asid(uint64_t asid) {
 
   // 4. do flushing.
   for(int i = 0; i < number_of_match; i++) {
-      send_page_evict_req(matched[i]);
+      send_page_evict_req(matched[i], true);
       wait_evict_req_complete(&matched[i], 1);
   }
 
@@ -322,7 +323,7 @@ void devteroflex_mmu_flush_by_va(uint64_t va) {
 
   // 4. do flushing.
   for(int i = 0; i < number_of_match; i++) {
-      send_page_evict_req(matched[i]);
+      send_page_evict_req(matched[i], true);
       wait_evict_req_complete(&matched[i], 1);
   }
   
@@ -368,7 +369,7 @@ void devteroflex_mmu_flush_by_hva_asid(uint64_t hva, uint64_t asid) {
 
   // 4. do flushing.
   for(int i = 0; i < number_of_match; i++) {
-      send_page_evict_req(matched[i]);
+      send_page_evict_req(matched[i], true);
       wait_evict_req_complete(&matched[i], 1);
   }
 
@@ -391,7 +392,7 @@ void devteroflex_mmu_flush_by_hva(uint64_t hva) {
 
   // 4. do flushing.
   for(int i = 0; i < ele; i++) {
-      send_page_evict_req(ipt_synonyms[i]);
+      send_page_evict_req(ipt_synonyms[i], true);
       wait_evict_req_complete(&ipt_synonyms[i], 1);
   }
 
@@ -414,7 +415,7 @@ void devteroflex_mmu_flush_all(void) {
 
   // 4. do flushing.
   for(int i = 0; i < ele; i++) {
-      send_page_evict_req(keys[i]);
+      send_page_evict_req(keys[i], true);
       wait_evict_req_complete(&keys[i], 1);
   }
 
