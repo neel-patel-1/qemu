@@ -15,6 +15,8 @@
 
 #include "qflex/qflex-traces.h"
 
+#include "rust-aux-mm.h"
+
 #include <glib.h>
 
 DevteroflexConfig devteroflexConfig = { 
@@ -79,7 +81,6 @@ static bool run_debug(CPUState *cpu) {
         qemu_log("WARNING:DevteroFlex:Transplant:Something in the execution changed the ASID\n");
         // Repack state, IRQ did not return to original program
         devteroflex_pack_archstate(&state, cpu);
-        ipt_register_asid(state.asid, QFLEX_GET_ARCH(asid_reg)(cpu));
      } else if(devteroflex_compare_archstate(cpu, &state)) {
         // Dangerous!!!
         qemu_log("WARNING:DevteroFlex:CPU[%i]:An architecture state mismatch has been detected. Quitting QEMU now. \n", cpu->cpu_index);
@@ -165,7 +166,6 @@ static void transplantRun(CPUState *cpu, uint32_t thid) {
     if(devteroflexConfig.enabled && devteroflexConfig.running) {
         cpu_push_fpga(cpu->cpu_index);
         devteroflex_pack_archstate(&state, cpu);
-        ipt_register_asid(state.asid, QFLEX_GET_ARCH(asid_reg)(cpu));
 
         if(devteroflexConfig.debug_mode) {
             // Ensure single instruction gets executed
@@ -221,7 +221,6 @@ static void transplantPushAllCpus(void) {
     CPU_FOREACH(cpu) {
         cpu_push_fpga(cpu->cpu_index);
         devteroflex_pack_archstate(&state, cpu);
-        ipt_register_asid(state.asid, QFLEX_GET_ARCH(asid_reg)(cpu));
 
         if(devteroflexConfig.debug_mode) {
             transplantPushAndSinglestep(&c, cpu->cpu_index, &state);
@@ -412,16 +411,8 @@ void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, int de
                 perror("WARNING:Number of DRAM pages provided by the FPGAContext should match the input.\n");
             }
         }
-        if (fpga_paddr_init_manager(fpga_physical_pages, c.ppage_base_addr)) {
-            perror("DevteroFlex: Couldn't init the stack for keepign track of free phyiscal pages in the fpga.\n");
-            abort();
-        }
-        // Initialize the inverted page table.
-        ipt_init();
-        // Initialize the temporal page table.
-        tpt_init();
-        // Initialize the shadow page table
-        spt_init();
+        // Initialize the rust library
+        rust_aux_init(fpga_physical_pages, c.ppage_base_addr);
 
         // In this case, the enable signal must be added.
         assert(devteroflexConfig.enabled && "When the page size is specified, you must enable the devteroflex! by adding `enabled=on` to the command options.");

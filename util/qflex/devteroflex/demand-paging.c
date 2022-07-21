@@ -6,6 +6,8 @@
 #include "qflex/devteroflex/demand-paging.h"
 #include "qflex/devteroflex/devteroflex-mmu.h"
 
+#include "rust-aux-mm.h"
+
 typedef struct {
     uint32_t bitmap;
     uint64_t ipt_bits[32];
@@ -86,7 +88,7 @@ bool page_fault_pending_run(uint64_t hvp) {
             has_pending = true;
             pendingRequests.bitmap &= ~mask;
             qemu_log("DevteroFlex:MMU:PA[0x%016lx]:SYNONYM PENDING\n", hvp);
-            tpt_add_entry(pendingRequests.ipt_bits[i], pendingRequests.hvp[i]);
+            tpt_register(pendingRequests.ipt_bits[i], pendingRequests.hvp[i]);
             send_page_fault_return(pendingRequests.ipt_bits[i], pendingRequests.hvp[i], pendingRequests.thid[i]);
         }
     }
@@ -97,19 +99,15 @@ bool page_fault_pending_run(uint64_t hvp) {
  *  @return true when no synonym is available.
  */
 bool insert_entry_get_ppn(uint64_t hvp, uint64_t ipt_bits, uint64_t *ppn) {
-    int ret = ipt_add_entry(hvp, ipt_bits);
+    int ret = ipt_register(hvp, ipt_bits);
     if(ret == SYNONYM) {
         *ppn = spt_lookup(hvp);
         printf("DevteorFlex:HVP[0x%016lx]:PPN:[0x%08lx]:Synonym\n", hvp, *ppn);
         return false;
     } else if (ret == PAGE) {
-        if(!fpga_paddr_get(ppn)){
-            // TODO support host side page evictions
-            perror("Ran out of physical pages in the FPGA, not supported forced evictions yet.");
-            exit(EXIT_FAILURE);
-        }
+        *ppn = fppn_allocate();
         // keep it in the spt.
-        spt_add_entry(hvp, *ppn);
+        spt_register(hvp, *ppn);
         return true;
     } else {
         perror("IPT Table error in adding entry");
@@ -125,9 +123,8 @@ bool devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
         return false;
     }
 
-    uint64_t *synonyms_list_ipt;
-    int list_size = ipt_check_synonyms(hvp, &synonyms_list_ipt);
-    if(list_size <= 0) {
+    c_array_t synonyms = ipt_lookup(hvp);
+    if(synonyms.length <= 0) {
         // No synonyms detected
         return false;
     }
@@ -137,8 +134,8 @@ bool devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
     bool synchronize = true;
     if(!synchronize) {
         // Search whenever FPGA might have modified page
-        for(int entry = 0; entry < list_size; entry++) {
-            if(IPT_GET_PERM(synonyms_list_ipt[entry]) == DATA_STORE) {
+        for(int entry = 0; entry < synonyms.length; entry++) {
+            if(IPT_GET_PERM(synonyms.data[entry]) == DATA_STORE) {
                 synchronize = true;
                 break;
             }
@@ -154,14 +151,13 @@ bool devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
     }
 
     
-    for(int entry = 0; entry < list_size; entry++) {
-        send_page_evict_req(synonyms_list_ipt[entry], type == INST_FETCH);
+    for(int entry = 0; entry < synonyms.length; entry++) {
+        send_page_evict_req(synonyms.data[entry], type == INST_FETCH);
     }
-    wait_evict_req_complete(synonyms_list_ipt, list_size);
+    wait_evict_req_complete(synonyms.data, synonyms.length);
 
     // Assert all synonyms have been evicted
-    free(synonyms_list_ipt);
-    list_size = ipt_check_synonyms(hvp, &synonyms_list_ipt);
-    assert(list_size <= 0); 
+    synonyms = ipt_lookup(hvp);
+    assert(synonyms.length <= 0); 
     return true;
 }

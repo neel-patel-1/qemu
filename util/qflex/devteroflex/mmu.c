@@ -10,6 +10,8 @@
 #include "qflex/devteroflex/devteroflex-mmu.h"
 #include "qflex/devteroflex/demand-paging.h"
 
+#include "rust-aux-mm.h"
+
 static uint8_t page_buffer[PAGE_SIZE];
 void mmu_message_run(MessageFPGA message) {
     switch (message.type)
@@ -76,15 +78,13 @@ void handle_evict_writeback(MessageFPGA* message) {
         }
     }
 
-    ipt_evict(hvp, ipt_bits);
+    ipt_unregister(hvp, ipt_bits);
     // We have to check whether there are other synonyms referring that page.
-    uint64_t *ipt_chain;
-    if(ipt_check_synonyms(hvp, &ipt_chain) != 0) {
-        free(ipt_chain);
-    } else {
+    c_array_t synonyms = ipt_lookup(hvp);
+    if(synonyms.length == 0) {
         // no other synonyms is mapped to that page. We can delete the page from FPGA.
-        fpga_paddr_push(ppn);
-        spt_remove_entry(hvp);
+        fppn_recycle(ppn);
+        spt_remove(hvp);
         if(!devteroflexConfig.debug_mode){
             // We can fetch the page now.
             dramPagePull(&c, ppn, (void *) hvp);
@@ -92,7 +92,7 @@ void handle_evict_writeback(MessageFPGA* message) {
     }
     page_fault_pending_run(hvp);
     evict_notfiy_pending_clear(ipt_bits);
-    tpt_remove_entry(ipt_bits);
+    tpt_remove(ipt_bits);
 }
 
 void handle_page_fault(MessageFPGA *message) {
@@ -137,7 +137,7 @@ void handle_page_fault(MessageFPGA *message) {
         page_fault_pending_add(ipt_bits, hvp, thid);
     } else {
         // now this page is pushed to the FPGA, we also put the mapping in the tpt.
-        tpt_add_entry(ipt_bits, hvp);
+        tpt_register(ipt_bits, hvp);
         send_page_fault_return(ipt_bits, hvp, thid);
         bool has_pending = page_fault_pending_run(hvp);
         assert(!has_pending);
@@ -179,7 +179,7 @@ bool mmu_has_pending(MessageFPGA *msg) {
     return false;
 }
 
-void wait_evict_req_complete(uint64_t *ipt_list, int count) {
+void wait_evict_req_complete(const uint64_t *ipt_list, int count) {
     MessageFPGA msg;
     bool matched = false;
     int left = count;
@@ -229,7 +229,7 @@ void devteroflex_mmu_flush_by_va_asid(uint64_t va, uint64_t asid) {
   qemu_log("Devteroflex:QEMU MMU:FLUSH:ASID[%lx]:VA[%016lx]\n", asid, va);
   for(int i = 0; i < 3; ++i){
     uint64_t to_evicted = IPT_COMPRESS(va, asid, i);
-    if(tpt_is_entry_exists(to_evicted)) {
+    if(tpt_key_exists(to_evicted)) {
         // do simple page eviction.
         // both TLBs are shotdown because the TLB flushing is rare.
       send_page_evict_req(to_evicted, true);
@@ -245,36 +245,32 @@ void devteroflex_mmu_flush_by_asid(uint64_t asid) {
 
   qemu_log("Devteroflex:QEMU MMU:FLUSH:ASID[%lx]\n", asid);
   // 1. get all entries in the tpt.
-  uint64_t ele = 0;
-  uint64_t *keys = tpt_all_keys(&ele);
+  c_array_t keys = tpt_all_keys();
 
-  if(ele == 0){
+  if(keys.length == 0){
     return;
   }
 
   uint64_t number_of_match = 0;
   // 2. query the number of matches.
-  for(int i = 0; i < ele; ++i){
-    if(IPT_GET_ASID(keys[i]) == asid) {
+  for(int i = 0; i < keys.length; ++i){
+    if(IPT_GET_ASID(keys.data[i]) == asid) {
       number_of_match++;
     }
   }
 
   if(number_of_match == 0){
-    free(keys);
     return;
   }
 
-  // 3. allocate memory to keep them.
+  // 3. allocate memory to keep them. Make a copy is necessary, because eviction will change the original data structure.
   uint64_t *matched = calloc(number_of_match, sizeof(uint64_t));
   uint64_t matched_key_index = 0;
-  for(int i = 0; i < ele; ++i){
-    if(IPT_GET_ASID(keys[i]) == asid) {
-      matched[matched_key_index++] = keys[i];
+  for(int i = 0; i < keys.length; ++i){
+    if(IPT_GET_ASID(keys.data[i]) == asid) {
+      matched[matched_key_index++] = keys.data[i];
     }
   }
-
-  free(keys);
 
   // 4. do flushing.
   for(int i = 0; i < number_of_match; i++) {
@@ -290,36 +286,32 @@ void devteroflex_mmu_flush_by_va(uint64_t va) {
 
   qemu_log("Devteroflex:QEMU MMU:TLB FLUSH:VA[%016lx]\n", va);
   // 1. get all entries in the tpt.
-  uint64_t ele = 0;
-  uint64_t *keys = tpt_all_keys(&ele);
+  c_array_t keys = tpt_all_keys();
 
-  if(ele == 0){
+  if(keys.length == 0){
     return;
   }
 
   uint64_t number_of_match = 0;
   // 2. query the number of matches.
-  for(int i = 0; i < ele; ++i){
-    if(IPT_GET_VA(keys[i]) == va) {
+  for(int i = 0; i < keys.length; ++i){
+    if(IPT_GET_VA(keys.data[i]) == va) {
       number_of_match++;
     }
   }
 
   if(number_of_match == 0){
-    free(keys);
     return;
   }
 
   // 3. allocate memory to keep them.
   uint64_t *matched = calloc(number_of_match, sizeof(uint64_t));
   uint64_t matched_key_index = 0;
-  for(int i = 0; i < ele; ++i){
-    if(IPT_GET_VA(keys[i]) == va) {
-      matched[matched_key_index++] = keys[i];
+  for(int i = 0; i < keys.length; ++i){
+    if(IPT_GET_VA(keys.data[i]) == va) {
+      matched[matched_key_index++] = keys.data[i];
     }
   }
-
-  free(keys);
 
   // 4. do flushing.
   for(int i = 0; i < number_of_match; i++) {
@@ -336,36 +328,32 @@ void devteroflex_mmu_flush_by_hva_asid(uint64_t hva, uint64_t asid) {
   qemu_log("Devteroflex:QEMU MMU:TLB FLUSH:ASID[%016lx]:HVA[%016lx]\n", asid, hva);
 
   // 1. query the IPT.
-  uint64_t *ipt_synonyms;
-  uint64_t ele = ipt_check_synonyms(hva, &ipt_synonyms);
+  c_array_t ele = ipt_lookup(hva);
 
-  if(ele == 0){
+  if(ele.length == 0){
     return;
   }
 
   uint64_t number_of_match = 0;
   // 2. filter
-  for(int i = 0; i < ele; ++i){
-    if(IPT_GET_ASID(ipt_synonyms[i]) == asid) {
+  for(int i = 0; i < ele.length; ++i){
+    if(IPT_GET_ASID(ele.data[i]) == asid) {
       number_of_match++;
     }
   }
 
   if(number_of_match == 0){
-    free(ipt_synonyms);
     return;
   }
 
   // 3. allocate memory to keep them.
   uint64_t *matched = calloc(number_of_match, sizeof(uint64_t));
   uint64_t matched_key_index = 0;
-  for(int i = 0; i < ele; ++i){
-    if(IPT_GET_ASID(ipt_synonyms[i]) == asid) {
-      matched[matched_key_index++] = ipt_synonyms[i];
+  for(int i = 0; i < ele.length; ++i){
+    if(IPT_GET_ASID(ele.data[i]) == asid) {
+      matched[matched_key_index++] = ele.data[i];
     }
   }
-
-  free(ipt_synonyms);
 
   // 4. do flushing.
   for(int i = 0; i < number_of_match; i++) {
@@ -383,20 +371,22 @@ void devteroflex_mmu_flush_by_hva(uint64_t hva) {
   qemu_log("Devteroflex:QEMU MMU:TLB FLUSH:HVA[%016lx]\n", hva);
 
   // 1. query the IPT.
-  uint64_t *ipt_synonyms;
-  uint64_t ele = ipt_check_synonyms(hva, &ipt_synonyms);
+  c_array_t ele = ipt_lookup(hva);
 
-  if(ele == 0){
+  if(ele.length == 0){
     return;
   }
 
+  uint64_t *copied = malloc(ele.length * sizeof(uint64_t));
+  memcpy(copied, ele.data, ele.length * sizeof(uint64_t));
+
   // 4. do flushing.
-  for(int i = 0; i < ele; i++) {
-      send_page_evict_req(ipt_synonyms[i], true);
-      wait_evict_req_complete(&ipt_synonyms[i], 1);
+  for(int i = 0; i < ele.length; i++) {
+      send_page_evict_req(copied[i], true);
+      wait_evict_req_complete(&copied[i], 1);
   }
 
-  free(ipt_synonyms);
+  free(copied);
 }
 
 
@@ -406,18 +396,20 @@ void devteroflex_mmu_flush_all(void) {
   qemu_log("Devteroflex:QEMU MMU:TLB FLUSH:ALL\n");
 
   // 1. get all entries in the tpt.
-  uint64_t ele = 0;
-  uint64_t *keys = tpt_all_keys(&ele);
+  c_array_t keys = tpt_all_keys();
 
-  if(ele == 0){
+  if(keys.length == 0){
     return;
   }
 
+  uint64_t *copied = malloc(keys.length * sizeof(uint64_t));
+  memcpy(copied, keys.data, keys.length * sizeof(uint64_t));
+
   // 4. do flushing.
-  for(int i = 0; i < ele; i++) {
-      send_page_evict_req(keys[i], true);
-      wait_evict_req_complete(&keys[i], 1);
+  for(int i = 0; i < keys.length; i++) {
+      send_page_evict_req(copied[i], true);
+      wait_evict_req_complete(&copied[i], 1);
   }
 
-  free(keys);
+  free(copied);
 }

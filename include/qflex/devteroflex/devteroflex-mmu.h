@@ -26,7 +26,7 @@ bool mmu_has_pending(MessageFPGA *msg);
 
 void send_page_fault_return(uint64_t ipt_bits, uint64_t hvp, uint32_t thid);
 void send_page_evict_req(uint64_t ipt_bits, bool flush_instruction_cache);
-void wait_evict_req_complete(uint64_t *ipt_list, int count);
+void wait_evict_req_complete(const uint64_t *ipt_list, int count);
 
 /**
  * @brief Flush a translation retrieved by virtual address and address space id.
