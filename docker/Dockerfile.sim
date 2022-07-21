@@ -1,0 +1,39 @@
+# Dockerfile for Devteroflex QEMU.
+FROM ubuntu:20.04 AS builder
+
+# 1. install necessary library and compile the hardware
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive apt install git build-essential ninja-build vim gdb \
+    libglib2.0-dev libprotobuf-c-dev python3 pkg-config \
+    libpixman-1-dev gnutls-bin verilator cmake curl default-jdk -y
+# 2. for the simulator
+RUN git clone https://github.com/parsa-epfl/KnockoutKraken.git && \
+    cd KnockoutKraken && git checkout dev && \ 
+    curl -L https://github.com/com-lihaoyi/mill/releases/download/0.10.5/0.10.5 > mill && chmod +x mill && \
+    ./mill Devteroflex.exportVerilog && cd regression && cmake -Bbuild && cd build && make KnockoutSimulator && \
+    cp KnockoutSimulator /usr/local/bin && cd /
+
+# 3. install rust toolchain
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+
+# 4. clone repo, build binary, install to root, and remove source code.
+RUN . "$HOME/.cargo/env" && git clone https://github.com/UlisesLuzius/qemu.git && \
+    cd qemu && \
+    git checkout armflex-6.2-dev && \
+    git submodule update --init --recursive && \
+    ./configure --target-list=aarch64-softmmu --extra-ldflags="-ldl" \ 
+    --enable-devteroflex=$(pwd)/../KnockoutKraken/regression/src/client && \
+    cd build && ninja && ninja install 
+
+FROM ubuntu:20.04
+# 1. install necessary library
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive apt install git build-essential ninja-build vim gdb \
+    libglib2.0-0 libprotobuf-c1 python3 pkg-config \
+    libpixman-1-0 gnutls-bin -y
+
+# 2. Copy file from the old builder
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# 3. create a user with the same id as the outside user.
+RUN groupadd -g 11154 parsa && useradd -u 223975 -g 11154 qflex

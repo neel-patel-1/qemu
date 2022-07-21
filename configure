@@ -3343,7 +3343,7 @@ fi
 # DEVTEROFLEX
 if test $devteroflex = "yes" ; then
   QEMU_CFLAGS="-DCONFIG_DEVTEROFLEX $QEMU_CFLAGS"
-  libdevteroflex="-lprotobuf-c -lrt"
+  libdevteroflex="-lprotobuf-c -lrt -ldl"
 fi
 
 if [ $devteroflex_aws_fpga_dir != "NONE" ]; then
