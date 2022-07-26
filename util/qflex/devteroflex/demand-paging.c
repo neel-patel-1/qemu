@@ -152,7 +152,8 @@ bool devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
 
     
     for(int entry = 0; entry < synonyms.length; entry++) {
-        send_page_evict_req(synonyms.data[entry], type == INST_FETCH);
+        // since the ipt already keeps the highest permission of that page, we can use that permission to decide whether to flush iCache.
+        send_page_evict_req(synonyms.data[entry], IPT_GET_PERM(synonyms.data[entry]) == INST_FETCH);
     }
     wait_evict_req_complete(synonyms.data, synonyms.length);
 
