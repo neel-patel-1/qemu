@@ -36,8 +36,6 @@ bool handle_evict_notify(MessageFPGA *message) {
     uint64_t gva = message->vpn << 12;
     uint64_t perm = message->EvictNotif.permission;
     uint32_t asid = message->asid;
-    // uint64_t ppn = message->EvictNotif.ppn << 12;
-    // bool modified = message->EvictNotif.modified;
 
     uint64_t ipt_bits = IPT_COMPRESS(gva, asid, perm);
     uint64_t hvp = tpt_lookup(ipt_bits);
@@ -57,7 +55,7 @@ void handle_evict_writeback(MessageFPGA* message) {
 
     uint64_t hvp = tpt_lookup(ipt_bits);
  
-    qemu_log("DevteroFlex:MMU:ASID[%x]:VA[0x%016lx]:PERM[%lu]:PPN[%08lx]:WRITE BACK\n", asid, gvp, perm, ppn);
+    qemu_log("DevteroFlex:MMU:ASID[%x]:VA[0x%016lx]:PERM[%lu]:PPN[0x%08lx]:WRITE BACK\n", asid, gvp, perm, ppn);
     if(debug_cmp_mem_sync() || debug_cmp_no_mem_sync()) {
         assert(!(devteroflexConfig.debug_mode == no_mem_sync && devteroflexConfig.transplant_type == TRANS_DEBUG));
         qemu_log("      - Comparing page\n");

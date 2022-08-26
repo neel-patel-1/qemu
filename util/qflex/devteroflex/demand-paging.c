@@ -102,7 +102,7 @@ bool insert_entry_get_ppn(uint64_t hvp, uint64_t ipt_bits, uint64_t *ppn) {
     int ret = ipt_register(hvp, ipt_bits);
     if(ret == SYNONYM) {
         *ppn = spt_lookup(hvp);
-        printf("DevteorFlex:HVP[0x%016lx]:PPN:[0x%08lx]:Synonym\n", hvp, *ppn);
+        qemu_log("DevteorFlex:HVP[0x%016lx]:PPN:[0x%08lx]:Synonym\n", hvp, *ppn);
         return false;
     } else if (ret == PAGE) {
         *ppn = fppn_allocate();
