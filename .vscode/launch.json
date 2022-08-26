@@ -1,0 +1,254 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+	
+		{
+			"name": "QEMU Launch",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/aarch64-softmmu/qemu-system-aarch64",
+			"args": [
+				"-cpu", "cortex-a57", "-M", "virt,gic-version=3",
+				"-smp", "16" , "-m", "8G",
+				"-nographic", "-rtc", "clock=vm",
+				"-global", "virtio-blk-device.scsi=off",
+				"-device", "virtio-scsi-device,id=scsi0",
+				"-device", "virtio-scsi-device,id=scsi1",
+				"-device", "virtio-scsi-pci,id=scsi2",
+				"-device", "scsi-hd,drive=hd0",
+				"-netdev", "user,id=net0,hostfwd=tcp::2243-:22",
+				"-boot", "menu=on",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/base-img/debian.qcow2,format=qcow2,id=hd0,if=none",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/base-img/flash0.qcow2,format=qcow2,if=pflash",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/base-img/flash1.qcow2,format=qcow2,if=pflash",
+				"-device", "virtio-net-device,netdev=net0,mac=52:54:00:00:01:00",
+    				"-loadvm", "multi-core-16",
+				"-icount", "shift=2,sleep=on,align=off",
+				"-D", "~/.ccache/tmp/qemu-devtero-log",
+			],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}/build/aarch64-softmmu",
+			"environment": [],
+			"externalConsole": false,
+			"MIMode": "gdb",
+			"setupCommands": [
+			    {
+				"description": "Enable pretty-printing for gdb",
+				"text": "-enable-pretty-printing",
+				"ignoreFailures": true
+			    },
+			    {
+				"description":  "Set Disassembly Flavor to Intel",
+				"text": "-gdb-set disassembly-flavor intel",
+				"ignoreFailures": true
+			    }
+			],
+		},
+
+		{
+			"name": "QEMU Singlestep",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/aarch64-softmmu/qemu-system-aarch64",
+			"args": [
+				"-cpu", "cortex-a57", "-M", "virt,gic-version=3",
+				"-smp", "16" , "-m", "8G",
+				"-nographic", "-rtc", "clock=vm",
+				"-global", "virtio-blk-device.scsi=off",
+				"-device", "virtio-scsi-device,id=scsi0",
+				"-device", "virtio-scsi-device,id=scsi1",
+				"-device", "virtio-scsi-pci,id=scsi2",
+				"-device", "scsi-hd,drive=hd0",
+				"-netdev", "user,id=net0,hostfwd=tcp::2243-:22",
+				"-boot", "menu=on",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/base-img/debian.qcow2,format=qcow2,id=hd0,if=none",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/base-img/flash0.qcow2,format=qcow2,if=pflash",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/base-img/flash1.qcow2,format=qcow2,if=pflash",
+				"-device", "virtio-net-device,netdev=net0,mac=52:54:00:00:01:00",
+				"-devteroflex",  "dram-pages=4096,enabled=on,pure-singlestep=on,target=0",
+    				"-loadvm", "multi-core-16",
+				"-icount", "shift=2,sleep=on,align=off",
+				"-D", "~/.ccache/tmp/qemu-devtero-log",
+			],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}/build/aarch64-softmmu",
+			"environment": [],
+			"externalConsole": false,
+			"MIMode": "gdb",
+			"setupCommands": [
+			    {
+				"description": "Enable pretty-printing for gdb",
+				"text": "-enable-pretty-printing",
+				"ignoreFailures": true
+			    },
+			    {
+				"description":  "Set Disassembly Flavor to Intel",
+				"text": "-gdb-set disassembly-flavor intel",
+				"ignoreFailures": true
+			    }
+			],
+		},
+
+		{
+			"name": "DevteroFlex debug",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/aarch64-softmmu/qemu-system-aarch64",
+			"args": [
+				"-cpu", "cortex-a57", "-M", "virt,gic-version=3",
+				"-smp", "16" , "-m", "8G",
+				"-nographic", "-rtc", "clock=vm",
+				"-global", "virtio-blk-device.scsi=off",
+				"-device", "virtio-scsi-device,id=scsi0",
+				"-device", "virtio-scsi-device,id=scsi1",
+				"-device", "virtio-scsi-pci,id=scsi2",
+				"-device", "scsi-hd,drive=hd0",
+				"-netdev", "user,id=net0,hostfwd=tcp::2243-:22",
+				"-boot", "menu=on",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/base-img/debian.qcow2,format=qcow2,id=hd0,if=none",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/base-img/flash0.qcow2,format=qcow2,if=pflash",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/base-img/flash1.qcow2,format=qcow2,if=pflash",
+				"-device", "virtio-net-device,netdev=net0,mac=52:54:00:00:01:00",
+				"-devteroflex",  "dram-pages=4096,enabled=on,debug=no_mem_sync,pure-singlestep=off,target=0",
+    				"-loadvm", "multi-core-16",
+				"-icount", "shift=2,sleep=on,align=off",
+				"-D", "~/.ccache/tmp/qemu-devtero-log",
+			],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}/build/aarch64-softmmu",
+			"environment": [],
+			"externalConsole": false,
+			"MIMode": "gdb",
+			"setupCommands": [
+			    {
+				"description": "Enable pretty-printing for gdb",
+				"text": "-enable-pretty-printing",
+				"ignoreFailures": true
+			    },
+			    {
+				"description":  "Set Disassembly Flavor to Intel",
+				"text": "-gdb-set disassembly-flavor intel",
+				"ignoreFailures": true
+			    }
+			],
+		},
+
+		{
+			"name": "DevteroFlex normal",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/aarch64-softmmu/qemu-system-aarch64",
+			"args": [
+				"-cpu", "cortex-a57", "-M", "virt,gic-version=3",
+				"-smp", "16" , "-m", "8G",
+				"-nographic", "-rtc", "clock=vm",
+				"-global", "virtio-blk-device.scsi=off",
+				"-device", "virtio-scsi-device,id=scsi0",
+				"-device", "virtio-scsi-device,id=scsi1",
+				"-device", "virtio-scsi-pci,id=scsi2",
+				"-device", "scsi-hd,drive=hd0",
+				"-netdev", "user,id=net0,hostfwd=tcp::2243-:22",
+				"-boot", "menu=on",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/base-img/debian.qcow2,format=qcow2,id=hd0,if=none",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/base-img/flash0.qcow2,format=qcow2,if=pflash",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/base-img/flash1.qcow2,format=qcow2,if=pflash",
+				"-device", "virtio-net-device,netdev=net0,mac=52:54:00:00:01:00",
+				"-qflex-gen-mem-trace", "core_count=16",
+				"-singlestep", "-d", "nochain",
+				"--accel" , "tcg,thread=single",
+				"-devteroflex",  "dram-pages=4096,enabled=on,pure-singlestep=off,target=0",
+    				"-loadvm", "multi-core-16",
+				"-icount", "shift=2,sleep=on,align=off",
+				"-D", "~/.ccache/tmp/qemu-devtero-log",
+			],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}/build/aarch64-softmmu",
+			"environment": [],
+			"externalConsole": false,
+			"MIMode": "gdb",
+			"setupCommands": [
+			    {
+				"description": "Enable pretty-printing for gdb",
+				"text": "-enable-pretty-printing",
+				"ignoreFailures": true
+			    },
+			    {
+				"description":  "Set Disassembly Flavor to Intel",
+				"text": "-gdb-set disassembly-flavor intel",
+				"ignoreFailures": true
+			    }
+			],
+		},
+
+		{
+			"name": "DevteroFlex singlethread",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/aarch64-softmmu/qemu-system-aarch64",
+			"args": [
+				"-cpu", "cortex-a57", "-M", "virt,gic-version=3",
+				"-smp", "1" , "-m", "8G",
+				"-nographic", "-rtc", "clock=vm",
+				"-global", "virtio-blk-device.scsi=off",
+				"-device", "virtio-scsi-device,id=scsi0",
+				"-device", "virtio-scsi-device,id=scsi1",
+				"-device", "virtio-scsi-pci,id=scsi2",
+				"-device", "scsi-hd,drive=hd0",
+				"-netdev", "user,id=net0,hostfwd=tcp::2243-:22",
+				"-boot", "menu=on",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/working/flash0.qcow2,format=qcow2,if=pflash",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/working/flash1.qcow2,format=qcow2,if=pflash",
+  				"-drive", "file=/home/ulises/Projects/DevteroFlex/scripts/working/debian.qcow2,format=qcow2,id=hd0,if=none",
+				"-device", "virtio-net-device,netdev=net0,mac=52:54:00:00:01:00",
+				"-qflex-gen-mem-trace", "core_count=1",
+				"-singlestep", "-d", "nochain",
+				"--accel" , "tcg,thread=single",
+				"-devteroflex",  "dram-pages=4096,enabled=on,pure-singlestep=off,target=0",
+    				"-loadvm", "base",
+				"-icount", "shift=2,sleep=on,align=off",
+				"-D", "~/.ccache/tmp/qemu-devtero-log",
+			],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}/build/aarch64-softmmu",
+			"environment": [],
+			"externalConsole": false,
+			"MIMode": "gdb",
+			"setupCommands": [
+			    {
+				"description": "Enable pretty-printing for gdb",
+				"text": "-enable-pretty-printing",
+				"ignoreFailures": true
+			    },
+			    {
+				"description":  "Set Disassembly Flavor to Intel",
+				"text": "-gdb-set disassembly-flavor intel",
+				"ignoreFailures": true
+			    }
+			],
+		}
+	]
+}
+/*
+-exec watch ((CPUState *)0x555557342130)->halted
+-exec watch ((CPUState *)0x5555573a6010)->halted
+-exec watch ((CPUState *)0x55555740c430)->halted
+-exec watch ((CPUState *)0x5555574728c0)->halted
+-exec watch ((CPUState *)0x5555574d8880)->halted
+-exec watch ((CPUState *)0x55555753e980)->halted
+-exec watch ((CPUState *)0x5555575a5500)->halted
+-exec watch ((CPUState *)0x55555760b470)->halted
+-exec watch ((CPUState *)0x5555576d7c60)->halted
+-exec watch ((CPUState *)0x5555576714e0)->halted
+-exec watch ((CPUState *)0x55555773dc20)->halted
+-exec watch ((CPUState *)0x5555577a3be0)->halted
+-exec watch ((CPUState *)0x555557809fa0)->halted
+-exec watch ((CPUState *)0x5555578700f0)->halted
+-exec watch ((CPUState *)0x5555578d6060)->halted
+-exec watch ((CPUState *)0x55555793cc20)->halted
+
+-exec condition 5 ((CPUState *)0x55555740bba0)->interrupt_request & (0x10 | 0x02 | 0x200 | 0x40 | 0x004)
+
+*/

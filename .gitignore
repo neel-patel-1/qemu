@@ -17,4 +17,5 @@ GTAGS
 *.patch
 .vscode/settings.json
 .vscode/clang-format
+.vscode/
 .cache
