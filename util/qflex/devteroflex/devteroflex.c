@@ -406,7 +406,10 @@ void devteroflex_init(bool enabled, bool run, size_t fpga_physical_pages, int de
 
     if(fpga_physical_pages != -1) {
         if(!pure_singlestep) {
-            initFPGAContext(&c);
+            if(initFPGAContext(&c) != 0){
+                perror("Error: FPGA context is not successfully initialized. \n");
+                exit(-1);
+            }
             if(fpga_physical_pages == c.dram_size / 4096) {
                 perror("WARNING:Number of DRAM pages provided by the FPGAContext should match the input.\n");
             }
