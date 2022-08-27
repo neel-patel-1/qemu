@@ -236,6 +236,7 @@ static void printPMUCounters(const FPGAContext *ctx){
   uint64_t cmt = pmuTotalCommitInstructions(ctx);
   qemu_log("Total committed instructions: %ld \n", cmt);
   qemu_log("IPC: %lf CPI: %lf \n", (double)(cmt) / cyc, (double)(cyc) / (double)(cmt));
+  qemu_log("Total number of transplants: %ld \n", pmuTotalTransplantTime(ctx));
   qemu_log("----------\n");
 
   const char *names[4] = {
