@@ -37,6 +37,50 @@ static uint32_t running_cpus;
 #define cpu_push_fpga(cpu) (running_cpus |= 1 << cpu)
 #define cpu_pull_fpga(cpu) (running_cpus &= ~(1 << cpu))
 
+static void printPMUCounters(const FPGAContext *ctx){
+  uint64_t cyc = pmuTotalCycles(ctx);
+  qemu_log("Total cycles: %ld \n", cyc);
+  uint64_t cmt = pmuTotalCommitInstructions(ctx);
+  qemu_log("Total committed instructions: %ld \n", cmt);
+  qemu_log("IPC: %lf CPI: %lf \n", (double)(cmt) / cyc, (double)(cyc) / (double)(cmt));
+  qemu_log("Total number of transplants: %ld \n", pmuTotalTransplantTime(ctx));
+  qemu_log("----------\n");
+
+  const char *names[4] = {
+    "DCachePenalty:",
+    "TLBPenalty:",
+    "TransplantPenalty:",
+    "PageFaultPenalty:"
+  };
+
+  for(int idx = 0; idx < 4; ++idx){
+    uint16_t penalties[16];
+    assert(pmuReadCycleCounters(ctx, idx, penalties) == 0);
+    qemu_log("%s", names[idx]);
+    qemu_log("Raw: ");
+    for(int i = 0; i < 16; ++i){
+      qemu_log("%d ", penalties[i]);
+    }
+    qemu_log("\n");
+    uint32_t cnt_sum = 0;
+    uint32_t cnt_non_zero = 0;
+
+    if(idx == 2) {
+      // for the trapsplant back penalty, we should clear the one that is caused by the last transplant back. 
+      penalties[0] = 0;
+    }
+
+    for(int i = 0; i < 16; ++i){
+      if(penalties[i] != 0){
+        cnt_sum += penalties[i];
+        cnt_non_zero += 1;
+      }
+    }
+    if(cnt_non_zero != 0) qemu_log("Average: %lf \n", (double)(cnt_sum) / cnt_non_zero);
+    qemu_log("----------");
+  }
+}
+
 void checkAsserts(int region) {
     uint32_t assertsRaised = assertFailedGet(&c, 0);
     if(assertsRaised) {
@@ -230,50 +274,6 @@ static void transplantPushAllCpus(void) {
             transplantPushAndStart(&c, cpu->cpu_index, &state);
         }
     }
-}
-
-static void printPMUCounters(const FPGAContext *ctx){
-  uint64_t cyc = pmuTotalCycles(ctx);
-  qemu_log("Total cycles: %ld \n", cyc);
-  uint64_t cmt = pmuTotalCommitInstructions(ctx);
-  qemu_log("Total committed instructions: %ld \n", cmt);
-  qemu_log("IPC: %lf CPI: %lf \n", (double)(cmt) / cyc, (double)(cyc) / (double)(cmt));
-  qemu_log("Total number of transplants: %ld \n", pmuTotalTransplantTime(ctx));
-  qemu_log("----------\n");
-
-  const char *names[4] = {
-    "DCachePenalty:",
-    "TLBPenalty:",
-    "TransplantPenalty:",
-    "PageFaultPenalty:"
-  };
-
-  for(int idx = 0; idx < 4; ++idx){
-    uint16_t penalties[16];
-    assert(pmuReadCycleCounters(ctx, idx, penalties) == 0);
-    qemu_log("%s", names[idx]);
-    qemu_log("Raw: ");
-    for(int i = 0; i < 16; ++i){
-      qemu_log("%d ", penalties[i]);
-    }
-    qemu_log("\n");
-    uint32_t cnt_sum = 0;
-    uint32_t cnt_non_zero = 0;
-
-    if(idx == 2) {
-      // for the trapsplant back penalty, we should clear the one that is caused by the last transplant back. 
-      penalties[0] = 0;
-    }
-
-    for(int i = 0; i < 16; ++i){
-      if(penalties[i] != 0){
-        cnt_sum += penalties[i];
-        cnt_non_zero += 1;
-      }
-    }
-    if(cnt_non_zero != 0) qemu_log("Average: %lf \n", (double)(cnt_sum) / cnt_non_zero);
-    qemu_log("----------");
-  }
 }
 
 // Functions that control QEMU execution flow
