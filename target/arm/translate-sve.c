@@ -5064,6 +5064,7 @@ static bool trans_UCVTF_dd(DisasContext *s, arg_rpr_esz *a)
 
 static void do_ldr(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
 {
+    assert(false); // TODO: DevteroFlex doesn't support this
     int len_align = QEMU_ALIGN_DOWN(len, 8);
     int len_remain = len % 8;
     int nparts = len / 8 + ctpop8(len_remain);
@@ -5152,6 +5153,7 @@ static void do_ldr(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
 /* Similarly for stores.  */
 static void do_str(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
 {
+    assert(false); // TODO: DevteroFlex doesn't support this
     int len_align = QEMU_ALIGN_DOWN(len, 8);
     int len_remain = len % 8;
     int nparts = len / 8 + ctpop8(len_remain);
@@ -5300,6 +5302,7 @@ static void do_mem_zpa(DisasContext *s, int zt, int pg, TCGv_i64 addr,
                        int dtype, uint32_t mte_n, bool is_write,
                        gen_helper_gvec_mem *fn)
 {
+    assert(false);
     unsigned vsz = vec_full_reg_size(s);
     TCGv_ptr t_pg;
     TCGv_i32 t_desc;
