@@ -5700,6 +5700,7 @@ static bool trans_LDNF1_zpri(DisasContext *s, arg_rpri_load *a)
 
 static void do_ldrq(DisasContext *s, int zt, int pg, TCGv_i64 addr, int dtype)
 {
+    assert(false);
     unsigned vsz = vec_full_reg_size(s);
     TCGv_ptr t_pg;
     int poff;
@@ -5767,6 +5768,7 @@ static bool trans_LD1RQ_zpri(DisasContext *s, arg_rpri_load *a)
 
 static void do_ldro(DisasContext *s, int zt, int pg, TCGv_i64 addr, int dtype)
 {
+    assert(false);
     unsigned vsz = vec_full_reg_size(s);
     unsigned vsz_r32;
     TCGv_ptr t_pg;
@@ -5874,6 +5876,7 @@ static bool trans_LD1R_zpri(DisasContext *s, arg_rpri_load *a)
 
     over = gen_new_label();
 
+    assert(false);
     /* If the guarding predicate has no bits set, no load occurs.  */
     if (psz <= 8) {
         /* Reduce the pred_esz_masks value simply to reduce the
