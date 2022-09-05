@@ -258,7 +258,11 @@ static void gen_probe_access(DisasContext *s, TCGv_i64 ptr,
     TCGv_i32 t_idx = tcg_const_i32(get_mem_index(s));
     TCGv_i32 t_size = tcg_const_i32(1 << log2_size);
 
+	GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+					 cpu_env, ptr, t_acc, t_size));
     gen_helper_probe_access(cpu_env, ptr, t_acc, t_idx, t_size);
+    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+					 cpu_env, ptr, t_acc, t_size));
     tcg_temp_free_i32(t_acc);
     tcg_temp_free_i32(t_idx);
     tcg_temp_free_i32(t_size);
@@ -1058,7 +1062,6 @@ static void do_fp_ld(DisasContext *s, int destidx, TCGv_i64 tcg_addr, int size)
 static void read_vec_element(DisasContext *s, TCGv_i64 tcg_dest, int srcidx,
                              int element, MemOp memop)
 {
-    // TODO(Rafael): Instrument qflex_pre_mem/qflex_post_mem helper.
     int vect_off = vec_reg_offset(s, srcidx, element, memop & MO_SIZE);
     switch ((unsigned)memop) {
     case MO_8:
@@ -1118,7 +1121,6 @@ static void read_vec_element_i32(DisasContext *s, TCGv_i32 tcg_dest, int srcidx,
 static void write_vec_element(DisasContext *s, TCGv_i64 tcg_src, int destidx,
                               int element, MemOp memop)
 {
-    // TODO(Rafael): Instrument qflex_pre_mem/qflex_post_mem helper.
     int vect_off = vec_reg_offset(s, destidx, element, memop & MO_SIZE);
     switch (memop) {
     case MO_8:
@@ -2435,7 +2437,7 @@ static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
 
     g_assert(size <= 3);
     GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
-		cpu_env, cpu_exclusive_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size)));
+		cpu_env, addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size)));
     if (is_pair) {
         g_assert(size >= 2);
         if (size == 2) {
@@ -2471,7 +2473,7 @@ static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
     }
     tcg_gen_mov_i64(cpu_exclusive_addr, addr);
     GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
-		cpu_env, cpu_exclusive_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size)));
+		cpu_env, addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size)));
 }
 
 static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
@@ -2496,7 +2498,7 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     tcg_gen_brcond_i64(TCG_COND_NE, addr, cpu_exclusive_addr, fail_label);
 
     GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
-					 cpu_env, cpu_exclusive_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size)));
+					 cpu_env, addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size)));
 
     tmp = tcg_temp_new_i64();
     if (is_pair) {
@@ -2548,7 +2550,7 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     gen_set_label(done_label);
 
     GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
-					 cpu_env, cpu_exclusive_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size)));
+					 cpu_env, addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size)));
 
     tcg_gen_movi_i64(cpu_exclusive_addr, -1);
 }
@@ -2566,7 +2568,6 @@ static void gen_compare_and_swap(DisasContext *s, int rs, int rt,
     }
     clean_addr = gen_mte_check1(s, cpu_reg_sp(s, rn), true, rn != 31, size);
 
-    // TODO（Rafael): Replace here MMU_DATA_STORE with exclusive LOAD.
     GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
 					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size)));
     GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
@@ -2598,7 +2599,6 @@ static void gen_compare_and_swap_pair(DisasContext *s, int rs, int rt,
     /* This is a single atomic access, despite the "pair". */
     clean_addr = gen_mte_check1(s, cpu_reg_sp(s, rn), true, rn != 31, size + 1);
 
-    // TODO（Rafael): Replace here MMU_DATA_STORE with exclusive LOAD.
     GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
 					 cpu_env, clean_addr, tcg_const_i32(MMU_DATA_LOAD), tcg_const_i32(1 << size)));
     GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
@@ -3032,6 +3032,8 @@ static void disas_ldst_pair(DisasContext *s, uint32_t insn)
     }
 
     if (set_tag) {
+        // We do not support Tag operations
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), assert(false));
         if (!s->ata) {
             /*
              * TODO: We could rely on the stores below, at least for
@@ -3937,7 +3939,6 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
  */
 static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
 {
-    // TODO(Rafael): Instrument this function with qflex_pre_mem / qflex_post_mem
     int rt = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
     int rm = extract32(insn, 16, 5);
