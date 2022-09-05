@@ -90,6 +90,8 @@ static bool run_debug(CPUState *cpu) {
         if(pending) {
             transplantGetState(&c, cpu->cpu_index, &state);
         }
+        pmuStopCounting(&c);
+        printPMUCounters(&c);
         abort();
     }
 

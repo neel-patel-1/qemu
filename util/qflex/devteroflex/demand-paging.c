@@ -123,6 +123,8 @@ bool devteroflex_synchronize_page(CPUState *cpu, uint64_t vaddr, int type) {
         return false;
     }
 
+    qemu_log("QEMU sent page synchronization request for GVA 0x%x \n", vaddr);
+
     c_array_t synonyms = ipt_lookup(hvp);
     if(synonyms.length <= 0) {
         // No synonyms detected
