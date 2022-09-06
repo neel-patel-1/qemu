@@ -2497,8 +2497,11 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
 
     tcg_gen_brcond_i64(TCG_COND_NE, addr, cpu_exclusive_addr, fail_label);
 
-    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
-					 cpu_env, addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size)));
+
+    if(!((tb_cflags(s->base.tb) & CF_PARALLEL) && !HAVE_CMPXCHG128)) {
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_pre_mem)( 
+			cpu_env, cpu_exclusive_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size)));
+    }
 
     tmp = tcg_temp_new_i64();
     if (is_pair) {
@@ -2541,6 +2544,11 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
                                    size | MO_ALIGN | s->be_data);
         tcg_gen_setcond_i64(TCG_COND_NE, tmp, tmp, cpu_exclusive_val);
     }
+    if(!((tb_cflags(s->base.tb) & CF_PARALLEL) && !HAVE_CMPXCHG128)) {
+        GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
+			cpu_env, cpu_exclusive_addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size)));
+    }
+
     tcg_gen_mov_i64(cpu_reg(s, rd), tmp);
     tcg_temp_free_i64(tmp);
     tcg_gen_br(done_label);
@@ -2548,9 +2556,6 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     gen_set_label(fail_label);
     tcg_gen_movi_i64(cpu_reg(s, rd), 1);
     gen_set_label(done_label);
-
-    GEN_QFLEX_HELPER(qflex_mem_trace_gen_helper(), GEN_HELPER(qflex_post_mem)( 
-					 cpu_env, addr, tcg_const_i32(MMU_DATA_STORE), tcg_const_i32(1 << size)));
 
     tcg_gen_movi_i64(cpu_exclusive_addr, -1);
 }
