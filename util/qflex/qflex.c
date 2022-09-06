@@ -11,7 +11,6 @@
 #include "qemu/thread.h"
 
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/option_int.h"

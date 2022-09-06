@@ -6,7 +6,6 @@
 #include "qemu/osdep.h"
 #include "qemu/thread.h"
 
-#include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/option_int.h"

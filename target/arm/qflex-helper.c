@@ -207,10 +207,13 @@ void HELPER(qflex_executed_instruction)(CPUARMState* env, uint64_t pc, int locat
     switch(location) {
         case QFLEX_EXEC_IN:
             if(unlikely(qflex_loglevel_mask(QFLEX_LOG_TB_EXEC))) {
-                FILE* logfile = qemu_log_lock();
-                qemu_log("IN[%d]  :", cs->cpu_index);
-                log_target_disas(cs, pc, 4);
-                qemu_log_unlock(logfile);
+                FILE* logfile = qemu_log_trylock();
+                if(logfile) {
+                    fprintf(logfile, "IN[%d]  :", cs->cpu_index);
+                    target_disas(logfile, cs, pc, 4);
+                    fprintf(logfile, "\n");
+                    qemu_log_unlock(logfile);
+                }
             }
             qflexState.inst_done = true;
             break;
