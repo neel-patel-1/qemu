@@ -7267,7 +7267,7 @@ static void handle_fpfpcvt(DisasContext *s, int rd, int rn, int opcode,
                 if (is_signed) {
                     gen_helper_vfp_tosls(tcg_dest, tcg_single,
                                          tcg_shift, tcg_fpstatus);
-                } else {,
+                } else {
                     gen_helper_vfp_touls(tcg_dest, tcg_single,
                                          tcg_shift, tcg_fpstatus);
                 }
@@ -11344,7 +11344,7 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
     switch (opcode) {
     case 1: /* SADDW, SADDW2, UADDW, UADDW2 */
     case 3: /* SSUBW, SSUBW2, USUBW, USUBW2 */
-,        /* 64 x 128 -> 128 */
+         /* 64 x 128 -> 128 */
         if (size == 3) {
             unallocated_encoding(s);
             return;
