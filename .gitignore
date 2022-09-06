@@ -15,6 +15,7 @@ GTAGS
 *.depend_raw
 *.swp
 *.patch
+*.gcov
 .vscode/settings.json
 .vscode/clang-format
 .vscode/
