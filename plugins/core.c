@@ -25,6 +25,7 @@
 
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "exec/helper-arch.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
 #include "plugin.h"
@@ -524,6 +525,14 @@ void qemu_plugin_user_exit(void)
 
     /* now it's safe to handle the exit case */
     qemu_plugin_atexit_cb();
+}
+
+bool qemu_plugin_vcpu_is_userland(CPUState *cpu) {
+    return HELPER(vcpu_is_userland)(cpu);
+}
+
+uint16_t qemu_plugin_vcpu_get_asid(CPUState *cpu) {
+    return HELPER(vcpu_get_asid)(cpu);
 }
 
 /*

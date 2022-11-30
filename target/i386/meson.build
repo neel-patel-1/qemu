@@ -5,6 +5,7 @@ i386_ss.add(files(
   'helper.c',
   'xsave_helper.c',
   'cpu-dump.c',
+  'helper-arch.c',
 ))
 i386_ss.add(when: 'CONFIG_SEV', if_true: files('host-cpu.c'))
 
