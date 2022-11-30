@@ -1,0 +1,22 @@
+[package]
+name = "trace_extraction"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+lazy_static = "1.4"
+capstone = "0.11"
+once_cell = "1.16"
+log = "0.4.17"
+log4rs = "1.2.0"
+regex = "1.7.0"
+
+[lib]
+crate-type=["rlib", "cdylib"]
+
+[lints]
+non-camel-case-types = "allow"
+unused = "allow"
