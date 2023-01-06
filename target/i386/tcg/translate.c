@@ -26,6 +26,7 @@
 #include "exec/cpu_ldst.h"
 #include "exec/translator.h"
 
+#include "exec/helper-arch.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 #include "helper-tcg.h"
@@ -7153,6 +7154,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             gen_helper_pause(cpu_env, tcg_const_i32(s->pc - pc_start));
             s->base.is_jmp = DISAS_NORETURN;
         }
+        GEN_HELPER(vcpu_magic_inst)(tcg_const_i64(s->pc - pc_start)); 
         break;
     case 0x9b: /* fwait */
         if ((s->flags & (HF_MP_MASK | HF_TS_MASK)) ==

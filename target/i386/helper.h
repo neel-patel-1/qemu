@@ -231,3 +231,7 @@ DEF_HELPER_3(rcrq, tl, env, tl, tl)
 #endif
 
 DEF_HELPER_1(rdrand, tl, env)
+
+#define TCG_GEN
+#include "exec/helper-arch-tcg.h"
+#undef TCG_GEN

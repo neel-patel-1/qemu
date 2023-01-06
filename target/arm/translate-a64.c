@@ -31,6 +31,7 @@
 #include "semihosting/semihost.h"
 #include "exec/gen-icount.h"
 
+#include "exec/helper-arch.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 #include "exec/log.h"
@@ -1513,6 +1514,14 @@ static void handle_hint(DisasContext *s, uint32_t insn,
             gen_helper_autib(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
         }
         break;
+/* CONFIG_QFLEX */
+    case 90:  case 91:  case 92:  case 93:  case 94:  case 95:  case 96:  case 97:  case 98:  case 99:
+    case 100: case 101: case 102: case 103: case 104: case 105: case 106: case 107: case 108: case 109:
+    case 110: case 111: case 112: case 113: case 114: case 115: case 116: case 117: case 118: case 119:
+    case 120: case 121: case 122: case 123: case 124: case 125: case 126: case 127:
+        GEN_HELPER(vcpu_magic_inst)(tcg_const_i64(selector));
+        return;
+/* CONFIG_QFLEX */
     default:
         /* default specified as NOP equivalent */
         break;
