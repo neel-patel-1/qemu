@@ -1,2 +1,6 @@
 util-obj-y = qflex-log.o
+util-obj-y += qflex-hmp.o
+util-obj-y += qflex-qmp.o
+util-obj-y += qflex-config.o
 util-obj-y += qflex.o
+

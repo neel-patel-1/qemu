@@ -77,46 +77,6 @@
 #include "tcg.h"
 #include <zlib.h> /* For crc32 */
 
-#if defined(CONFIG_FLEXUS) && defined(CONFIG_EXTSNAP)
-#include "include/sysemu/sysemu.h"
-#include "qmp-commands.h"
-static uint64_t num_inst;
-static bool phases_init = false;
-void helper_phases(CPUARMState *env)
-{
-    if (is_phases_enabled()) {
-        if (!phases_init) {
-            phases_init = true;
-        }
-        if (phase_is_valid()) {
-            if (++num_inst == get_phase_value()) {
-                vm_stop(RUN_STATE_PAUSED);
-                save_phase();
-                pop_phase();
-                num_inst = 0;
-            }
-        } else if (!save_request_pending()) {
-            fprintf(stderr, "done creating phases.");
-            toggle_phases_creation();
-            request_quit();
-        }
-    } else if (is_ckpt_enabled()) {
-        if (++num_inst % get_ckpt_interval() == 0) {
-            vm_stop(RUN_STATE_PAUSED);
-            save_ckpt();
-        }
-
-        if (num_inst >= get_ckpt_end()) {
-            toggle_ckpt_creation();
-            fprintf(stderr, "done creating checkpoints.");
-            request_quit();
-        }
-
-
-    }
-
-}
-#endif
 #ifdef CONFIG_QUANTUM
 static uint64_t *tni; // total num instructions
 static uint64_t qv, qr, qn, qs; // total num instructions
@@ -580,35 +540,6 @@ uint64_t HELPER(crc32c_64)(uint64_t acc, uint64_t val, uint32_t bytes)
     return crc32c(acc, buf, bytes) ^ 0xffffffff;
 }
 
-#ifdef CONFIG_FLEXUS
-/* Aarch 64 helpers */
-void helper_flexus_insn_fetch_aa64( CPUARMState *env,
-			       target_ulong pc,
-			       uint64_t targ_addr,
-			       int ins_size,
-			       int is_user,
-			       int cond,
-			       int annul ) {
-  helper_flexus_insn_fetch(env, pc, targ_addr, ins_size, is_user, cond, annul);
-}
-void helper_flexus_ld_aa64( CPUARMState *env,
-		       uint64_t addr,
-		       int size,
-		       int is_user,
-		       target_ulong pc,
-		       int is_atomic ) {
-  helper_flexus_ld(env, addr, size, is_user, pc, is_atomic);
-}
-void helper_flexus_st_aa64(
-		      CPUARMState *env,
-		      uint64_t addr,
-		      int size,
-		      int is_user,
-		      target_ulong pc,
-		      int is_atomic) {
-  helper_flexus_st(env, addr, size, is_user, pc, is_atomic);
-}
-#endif
 /* Returns 0 on success; 1 otherwise.  */
 uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
                                      uint64_t new_lo, uint64_t new_hi)

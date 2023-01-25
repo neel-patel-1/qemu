@@ -78,10 +78,6 @@
 #include "sys/prctl.h"
 #endif
 
-#ifdef CONFIG_EXTSNAP
-    bool exton = false;
-#endif
-
 #ifdef CONFIG_SDL
 #if defined(__APPLE__) || defined(main)
 #include <SDL.h>
@@ -181,7 +177,11 @@ int main(int argc, char **argv)
 
 #if defined(CONFIG_FLEXUS)
 #include "qflex/qflex-log.h"
+#include "qflex/qflex-config.h"
 #endif /* CONFIG_FLEXUS */
+
+#ifdef CONFIG_EXTSNAP
+#endif
 
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
@@ -596,69 +596,6 @@ static QemuOptsList qemu_quantum_opts = {
         { /* end of list */ }
     },
 };
-#endif
-
-#ifdef CONFIG_FLEXUS
-static QemuOptsList qemu_flexus_opts = {
-    .name = "flexus",
-    .implied_opt_name = "mode",
-    .merge_lists = true,
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_flexus_opts.head),
-    .desc = {
-        {
-            .name = "mode",
-            .type = QEMU_OPT_STRING,
-        }, {
-            .name = "length",
-            .type = QEMU_OPT_STRING,
-        }, {
-            .name = "simulator",
-            .type = QEMU_OPT_STRING,
-        }, {
-            .name = "config",
-            .type = QEMU_OPT_STRING,
-        }, {
-            .name = "debug",
-            .type = QEMU_OPT_STRING,
-        },
-        { /* end of list */ }
-    },
-};
-#ifdef CONFIG_EXTSNAP
-static QemuOptsList qemu_phases_opts = {
-    .name = "phases",
-    .implied_opt_name = "steps",
-    .merge_lists = true,
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_phases_opts.head),
-    .desc = {
-        {
-            .name = "steps",
-            .type = QEMU_OPT_STRING,
-        }, {
-            .name = "name",
-            .type = QEMU_OPT_STRING,
-        },
-        { /* end of list */ }
-    },
-};
-
-static QemuOptsList qemu_ckpt_opts = {
-    .name = "ckpt",
-    .implied_opt_name = "every",
-    .merge_lists = true,
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_ckpt_opts.head),
-    .desc = {
-        {
-            .name = "every",
-            .type = QEMU_OPT_STRING,
-        }, {
-            .name = "end",
-            .type = QEMU_OPT_STRING,
-        },
-        { /* end of list */ }
-    },
-};
-#endif
 #endif
 
 static QemuOptsList qemu_semihosting_config_opts = {
@@ -2137,10 +2074,6 @@ static bool main_loop_should_exit(void)
 
 static void main_loop(void)
 {
-#ifdef CONFIG_FLEXUS
-    prepareFlexus();
-#endif
-
 #ifdef CONFIG_PROFILER
     int64_t ti;
 #endif
@@ -3315,6 +3248,7 @@ int main(int argc, char **argv, char **envp)
     bool list_data_dirs = false;
 #ifdef CONFIG_EXTSNAP
     const char* loadext = NULL;
+    bool exton = false;
 #endif
 #if defined(CONFIG_FLEXUS)
     const char *qflex_log_opts = NULL;
@@ -3374,10 +3308,10 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_quantum_opts);
 #endif
 #ifdef CONFIG_FLEXUS
-    qemu_add_opts(&qemu_flexus_opts);
+    qemu_add_opts(&qflex_flexus_opts);
 #ifdef CONFIG_EXTSNAP
-    qemu_add_opts(&qemu_ckpt_opts);
-    qemu_add_opts(&qemu_phases_opts);
+    qemu_add_opts(&qflex_ckpt_opts);
+    qemu_add_opts(&qflex_phases_opts);
 #endif
 #endif
     qemu_add_opts(&qemu_semihosting_config_opts);
@@ -5148,54 +5082,49 @@ int main(int argc, char **argv, char **envp)
 #endif
 
 #ifdef CONFIG_FLEXUS
-    if (flexus_opts) {
+    if (flexus_opts)
         configure_flexus(flexus_opts, &error_abort);
-    }
-#endif
-#ifdef CONFIG_EXTSNAP
-#ifdef CONFIG_FLEXUS
+#endif // CONFIG_FLEXUS
+
+#if defined(CONFIG_FLEXUS) && defined(CONFIG_EXTSNAP)
     if (phases_opts)
         configure_phases(phases_opts, &error_abort);
 
     if (ckpt_opts)
         configure_ckpt(ckpt_opts, &error_abort);
-#endif
+#endif //  defined(CONFIG_FLEXUS) && defined(CONFIG_EXTSNAP)
+
+#ifdef CONFIG_EXTSNAP
     if (exton) {
-        if(create_tmp_overlay() < 0){
+        configure_extsnap(exton);
+        if (create_tmp_overlay() < 0) {
             fprintf(stdout, "External snapshots subsystem can not be loaded\n");
             exit(1);
-	}
+        }
     }
-    if (loadext) {
-#if defined (CONFIG_EXTSNAP) && defined (CONFIG_FLEXUS)
-        set_base_ckpt_name(loadext);
-#endif
-        if(incremental_load_vmstate_ext(loadext, NULL) < 0){
-            fprintf(stdout, "External snapshot with args: %s, can not be loaded\n", loadext);
-            exit(1);
-	}
-    }
-    else
-    {
-#if defined (CONFIG_EXTSNAP) && defined (CONFIG_FLEXUS)
-        set_base_ckpt_name("");
-#endif
-    }
-#endif
 
-#if defined(CONFIG_FLEXUS) || defined(CONFIG_FA_QFLEX)
-    if (qflex_log_opts) {
-        int mask;
-        mask = qflex_str_to_log_mask(qflex_log_opts);
-        if (!mask) {
-            qflex_print_log_usage(qflex_log_opts, stdout);
+    if (loadext) {
+
+#ifdef CONFIG_FLEXUS
+        set_base_ckpt_name(loadext);
+#endif // defined(CONFIG_FLEXUS) && defined(CONFIG_EXTSNAP)
+        if (incremental_load_vmstate_ext(loadext, NULL) < 0) {
+            fprintf(stdout,
+                    "External snapshot with args: %s, can not be loaded\n",
+                    loadext);
             exit(1);
         }
-        qflex_set_log(mask);
     } else {
-        qflex_set_log(0);
+#if defined(CONFIG_EXTSNAP) && defined(CONFIG_FLEXUS)
+        set_base_ckpt_name("");
+#endif // defined(CONFIG_FLEXUS) && defined(CONFIG_EXTSNAP)
     }
-#endif /* CONFIG_FLEXUS */ /* CONFIG_FA_QLEX */
+
+#endif // defined(CONFIG_EXTSNAP) 
+
+#if defined(CONFIG_FLEXUS)
+    configure_qflex_log(qflex_log_opts, &error_abort);
+#endif // defined(CONFIG_FLEXUS)
 
     qdev_prop_check_globals();
     if (vmstate_dump_file) {
@@ -5220,12 +5149,15 @@ int main(int argc, char **argv, char **envp)
     main_loop();
     replay_disable_events();
     iothread_stop_all();
+
 #ifdef CONFIG_EXTSNAP
     if (exton == true) {
        delete_tmp_overlay();
     }
 #endif
+
 #ifdef CONFIG_FLEXUS
+    qflex_api_shutdown();
     if (!flexus_in_timing() ) {
         pause_all_vcpus();
     }

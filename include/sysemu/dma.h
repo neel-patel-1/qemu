@@ -63,6 +63,7 @@
 #ifdef CONFIG_FLEXUS
 #include "../libqflex/api.h"
 #include "include/sysemu/sysemu.h"
+#include "qflex/qflex.h"
 #endif
 
 typedef struct ScatterGatherEntry ScatterGatherEntry;

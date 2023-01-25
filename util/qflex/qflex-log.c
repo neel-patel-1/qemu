@@ -43,6 +43,7 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //  DO-NOT-REMOVE end-copyright-block
 #include "qflex/qflex-log.h"
+#include "qflex/qflex.h"
 int qflex_loglevel = 0;
 int qflex_iloop = 0;
 int qflex_iExit = 0;
@@ -97,6 +98,19 @@ int qflex_str_to_log_mask(const char *str)
     return 0;
 }
 
+void configure_qflex_log(const char *opts, Error **errp) {
+    if (opts) {
+        int mask;
+        mask = qflex_str_to_log_mask(opts);
+        if (!mask) {
+            qflex_print_log_usage(opts, stdout);
+            exit(1);
+        }
+        qflex_set_log(mask);
+    } else {
+        qflex_set_log(0);
+    }
+}
 
 void qflex_print_log_usage(const char *str, FILE *f)
 {

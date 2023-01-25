@@ -100,6 +100,7 @@ void qflex_print_log_usage(const char *str, FILE *f);
     do { qflex_loglevel &= ~MASK; } while (0)
 
 static inline void qflex_set_log(int mask) { qflex_loglevel = mask; }
+void configure_qflex_log(const char *opts, Error **errp);
 
 #endif /* QFLEX_LOG_H */
 

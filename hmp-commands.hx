@@ -1871,7 +1871,7 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "get total instructions executed",
-        .cmd = hmp_cpu_dbg,
+        .cmd = hmp_quantum_cpu_dbg,
     },
 
 STEXI
@@ -1886,7 +1886,7 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "Zero total instructions count, Debug information",
-        .cmd = hmp_cpu_zero_all,
+        .cmd = hmp_quantum_cpu_zero_all,
     },
 
 STEXI

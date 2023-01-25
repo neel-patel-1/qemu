@@ -108,6 +108,7 @@
 #include "qemu-file.h"
 
 #include "benchmark.h"
+#include "qflex/qflex.h"
 
 const char *input_command = "pbzip2 -d -c";
 const char *output_command = "pbzip2 -c";
@@ -653,7 +654,7 @@ int incremental_load_vmstate_ext (const char *name, Monitor *mon) {
         }
 
 #ifdef CONFIG_FLEXUS
-        set_flexus_load_dir(path->string);
+        set_flexus_snap_dir(path->string);
 #endif
 
         QDECREF(path);
