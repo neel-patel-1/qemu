@@ -133,7 +133,7 @@ void qmp_quit(Error **errp)
 {
 #ifdef CONFIG_FLEXUS
     if (flexus_in_simulation()) {
-        flexus_dynlib_fns.qflex_quit();
+        flexus_dynlib_fns.qflex_sim_quit();
     }
 #endif
     no_shutdown = 0;

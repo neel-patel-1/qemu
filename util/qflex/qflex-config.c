@@ -156,7 +156,7 @@ void configure_flexus(QemuOpts *opts, Error **errp)
 
 
     // trigger the periodic event
-    QEMU_execute_callbacks(-1, 0, 0);
+    QEMU_execute_callbacks(QEMUFLEX_GENERIC_CALLBACK, QEMU_continuation, 0);
 }
 
 void set_flexus_snap_dir(const char* dir_name) {

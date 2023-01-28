@@ -1708,7 +1708,7 @@ _label_start_timing:
         qflex_log_mask(QFLEX_LOG_GENERAL, "QFLEX: TIMING START\n"
                                           "    -> Starting timing simulation. Passing control to Flexus.\n");
         qflex_control_with_flexus = true;
-        flexus_dynlib_fns.startTiming();
+        flexus_dynlib_fns.qflex_sim_start_timing();
     }
     qflex_log_mask(QFLEX_LOG_GENERAL, "QFLEX: Went outside QEMU and Flexus loops\n");
     CPU_FOREACH(cpu) {

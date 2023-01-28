@@ -35,7 +35,7 @@
 
 void flexus_qmp(qmp_flexus_cmd_t cmd, const char* args, Error **errp){
     if (flexus_in_simulation()) {
-        flexus_dynlib_fns.qmp_call(cmd, args);
+        flexus_dynlib_fns.qflex_sim_qmp(cmd, args);
     } else {
         error_setg(errp, "flexus is not running");
     }
