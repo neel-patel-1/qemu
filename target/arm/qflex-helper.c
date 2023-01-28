@@ -333,12 +333,8 @@ void flexus_cache_op_transaction(CPUARMState *env, target_ulong pc, int is_user,
   // In Qemu, PhysicalIO address space and PhysicalMemory address
   // space are combined into one (the cpu address space)
   // Operations on this address space may lead to I/O and Physical Memory
-  conf_object_t *space = malloc(sizeof(conf_object_t));
-  space->type = QEMU_AddressSpace;
-  space->object = cs->as;
   memory_transaction_t *mem_trans = malloc(sizeof(memory_transaction_t));
   mem_trans->s.cpu_state = cs;
-  mem_trans->s.ini_ptr = space;
   mem_trans->s.pc = pc;
   mem_trans->s.logical_address = 0;
   mem_trans->s.physical_address = 0;
@@ -364,7 +360,6 @@ void flexus_cache_op_transaction(CPUARMState *env, target_ulong pc, int is_user,
 
   QEMU_callback_args_t *event_data = malloc(sizeof(QEMU_callback_args_t));
   event_data->ncm = malloc(sizeof(QEMU_ncm));
-  event_data->ncm->space = space;
   event_data->ncm->trans = mem_trans;
 
 #ifdef CONFIG_DEBUG_LIBQFLEX
@@ -379,7 +374,6 @@ void flexus_cache_op_transaction(CPUARMState *env, target_ulong pc, int is_user,
 
   QEMU_execute_callbacks(cs->cpu_index, QEMU_cpu_mem_trans, event_data);
 
-  free(space);
   free(mem_trans);
   free(event_data->ncm);
   free(event_data);
@@ -548,12 +542,8 @@ void flexus_insn_fetch_transaction(CPUARMState *env,
   // In Qemu, PhysicalIO address space and PhysicalMemory address
   // space are combined into one (the cpu address space)
   // Operations on this address space may lead to I/O and Physical Memory
-  conf_object_t *space = &space_cached;
-  space->type = QEMU_AddressSpace;
-  space->object = cs->as;
   memory_transaction_t *mem_trans = &mem_trans_cached;
   mem_trans->s.cpu_state = cs;
-  mem_trans->s.ini_ptr = space;
   mem_trans->s.pc = pc;
   // the "logical_address" must be the PC for Flexus
   mem_trans->s.logical_address = pc;
@@ -566,7 +556,6 @@ void flexus_insn_fetch_transaction(CPUARMState *env,
   mem_trans->arm_specific.user = is_user;
   QEMU_callback_args_t *event_data = &event_data_cached;
   event_data->ncm = &ncm_cached;
-  event_data->ncm->space = space;
   event_data->ncm->trans = mem_trans;
 
 #ifdef CONFIG_DEBUG_LIBQFLEX
@@ -624,12 +613,8 @@ void flexus_transaction(CPUARMState *env, logical_address_t vaddr,
   // In Qemu, PhysicalIO address space and PhysicalMemory address
   // space are combined into one (the cpu address space)
   // Operations on this address space may lead to I/O and Physical Memory
-  conf_object_t *space = &space_cached;
-  space->type = QEMU_AddressSpace;
-  space->object = cs->as;
   memory_transaction_t *mem_trans = &mem_trans_cached;
   mem_trans->s.cpu_state = cs;
-  mem_trans->s.ini_ptr = space;
   mem_trans->s.pc = pc;
   mem_trans->s.logical_address = vaddr;
   mem_trans->s.physical_address = paddr;
@@ -655,7 +640,6 @@ void flexus_transaction(CPUARMState *env, logical_address_t vaddr,
   mem_trans->io = io;
   QEMU_callback_args_t *event_data = &event_data_cached;
   event_data->ncm = &ncm_cached;
-  event_data->ncm->space = space;
   event_data->ncm->trans = mem_trans;
 
 #ifdef CONFIG_DEBUG_LIBQFLEX
