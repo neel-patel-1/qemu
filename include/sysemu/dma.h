@@ -147,18 +147,13 @@ static inline int dma_memory_rw_relaxed(AddressSpace *as, dma_addr_t addr,
 
   mem_trans->s.size = len;
 
-  QEMU_callback_args_t * event_data = malloc(sizeof(QEMU_callback_args_t));
-  event_data->ncm = malloc(sizeof(QEMU_ncm));
-  event_data->ncm->space = NULL;
-  event_data->ncm->trans = mem_trans;
 #ifdef CONFIG_DEBUG_LIBQFLEX
   QEMU_increment_debug_stat(NUM_DMA_ALL);
 #endif
-  if (flexus_in_trace())
-      QEMU_execute_callbacks(QEMUFLEX_GENERIC_CALLBACK, QEMU_dma_mem_trans, event_data);
+  if (flexus_in_trace()) {
+    flexus_dynlib_fns.qflex_sim_callbacks.trace_mem_dma(mem_trans);
+  }
   free(mem_trans);
-  free(event_data->ncm);
-  free(event_data);
 #endif
 
     return (bool)address_space_rw(as, addr, MEMTXATTRS_UNSPECIFIED,

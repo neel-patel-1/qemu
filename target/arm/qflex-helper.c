@@ -358,9 +358,8 @@ void flexus_cache_op_transaction(CPUARMState *env, target_ulong pc, int is_user,
     mem_trans->addr_range.end_paddr = data & 0x0F;   // last 4  bits are ignored
   }
 
-  QEMU_callback_args_t *event_data = malloc(sizeof(QEMU_callback_args_t));
-  event_data->ncm = malloc(sizeof(QEMU_ncm));
-  event_data->ncm->trans = mem_trans;
+  flexus_dynlib_fns.qflex_sim_callbacks.trace_mem(cs->cpu_index, mem_trans);
+  free(mem_trans);
 
 #ifdef CONFIG_DEBUG_LIBQFLEX
   if (is_user)
@@ -372,11 +371,6 @@ void flexus_cache_op_transaction(CPUARMState *env, target_ulong pc, int is_user,
   QEMU_increment_debug_stat(QEMU_CALLBACK_CNT);
 #endif
 
-  QEMU_execute_callbacks(cs->cpu_index, QEMU_cpu_mem_trans, event_data);
-
-  free(mem_trans);
-  free(event_data->ncm);
-  free(event_data);
 }
 
 /* FIXME:
@@ -509,8 +503,6 @@ void helper_phases(CPUARMState *env) {
 /* cached variables */
 conf_object_t space_cached;
 memory_transaction_t mem_trans_cached;
-QEMU_callback_args_t event_data_cached;
-QEMU_ncm ncm_cached;
 
 /* Generic Flexus helper functions */
 void flexus_insn_fetch_transaction(CPUARMState *env,
@@ -554,9 +546,7 @@ void flexus_insn_fetch_transaction(CPUARMState *env,
   mem_trans->s.branch_type = cond;
   mem_trans->s.annul = annul;
   mem_trans->arm_specific.user = is_user;
-  QEMU_callback_args_t *event_data = &event_data_cached;
-  event_data->ncm = &ncm_cached;
-  event_data->ncm->trans = mem_trans;
+  flexus_dynlib_fns.qflex_sim_callbacks.trace_mem(cs->cpu_index, mem_trans);
 
 #ifdef CONFIG_DEBUG_LIBQFLEX
   if (is_user == 1)
@@ -576,10 +566,7 @@ void flexus_insn_fetch_transaction(CPUARMState *env,
   insdata->type = QEMU_cpu_mem_trans;
   QFLEX_SendInstruction(insdata);
   free(insdata);
-
 #endif
-
-  QEMU_execute_callbacks(cs->cpu_index, QEMU_cpu_mem_trans, event_data);
 
 #if defined(CONFIG_TEST_TIME) && defined(CONFIG_TEST_FETCH_TIME)
   int64_t end_time = clock_get_current_time_us();
@@ -638,9 +625,7 @@ void flexus_transaction(CPUARMState *env, logical_address_t vaddr,
 */
   mem_trans->arm_specific.user = is_user;
   mem_trans->io = io;
-  QEMU_callback_args_t *event_data = &event_data_cached;
-  event_data->ncm = &ncm_cached;
-  event_data->ncm->trans = mem_trans;
+  flexus_dynlib_fns.qflex_sim_callbacks.trace_mem(cs->cpu_index, mem_trans);
 
 #ifdef CONFIG_DEBUG_LIBQFLEX
   if (is_user)
@@ -652,7 +637,6 @@ void flexus_transaction(CPUARMState *env, logical_address_t vaddr,
   QEMU_increment_debug_stat(QEMU_CALLBACK_CNT);
 #endif
 
-  QEMU_execute_callbacks(cs->cpu_index, QEMU_cpu_mem_trans, event_data);
 
 #if defined(CONFIG_TEST_TIME) && defined(CONFIG_TEST_LS_TIME)
   int64_t end_time = clock_get_current_time_us();
@@ -677,12 +661,7 @@ void helper_flexus_magic_ins(CPUARMState *env, int trig_reg, uint64_t cmd_id,
 
   /* Msutherl: If in simulation mode, execute magic_insn callback types. */
   if ((flexus_in_timing() && qflex_control_with_flexus) || flexus_in_trace()) {
-    QEMU_callback_args_t *event_data = malloc(sizeof(QEMU_callback_args_t));
-    event_data->nocI = malloc(sizeof(QEMU_nocI));
-    event_data->nocI->bigint = cpu->cpu_index;
-    QEMU_execute_callbacks(cpu->cpu_index, QEMU_magic_instruction, event_data);
-    free(event_data->nocI);
-    free(event_data);
+    flexus_dynlib_fns.qflex_sim_callbacks.magic_inst(cpu->cpu_index, cpu->cpu_index);
   }
 
   if (cmd_id == 999) {
@@ -732,11 +711,7 @@ void helper_flexus_periodic(CPUARMState *env, int isUser) {
 
     uint64_t eventDelay = 1000;
     if ((instCnt % eventDelay) == 0) {
-      QEMU_callback_args_t *event_data = &event_data_cached;
-      event_data->ncm = &ncm_cached;
-
-      QEMU_execute_callbacks(QEMUFLEX_GENERIC_CALLBACK, QEMU_periodic_event,
-                             event_data);
+      flexus_dynlib_fns.qflex_sim_callbacks.periodic();
     }
   }
 }

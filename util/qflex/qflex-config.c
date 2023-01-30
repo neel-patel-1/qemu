@@ -153,10 +153,6 @@ void configure_flexus(QemuOpts *opts, Error **errp)
     if (flexus_state.debug_mode) {
         flexus_setDebug(flexus_state.debug_mode, NULL);
     }
-
-
-    // trigger the periodic event
-    QEMU_execute_callbacks(QEMUFLEX_GENERIC_CALLBACK, QEMU_continuation, 0);
 }
 
 void set_flexus_snap_dir(const char* dir_name) {
