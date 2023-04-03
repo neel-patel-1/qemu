@@ -151,7 +151,7 @@ static inline int dma_memory_rw_relaxed(AddressSpace *as, dma_addr_t addr,
   QEMU_increment_debug_stat(NUM_DMA_ALL);
 #endif
   if (flexus_in_trace()) {
-    flexus_dynlib_fns.qflex_sim_callbacks.trace_mem_dma(mem_trans);
+    qflex_sim_callbacks.trace_mem_dma(mem_trans);
   }
   free(mem_trans);
 #endif

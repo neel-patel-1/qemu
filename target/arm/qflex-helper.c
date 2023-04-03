@@ -358,7 +358,7 @@ void flexus_cache_op_transaction(CPUARMState *env, target_ulong pc, int is_user,
     mem_trans->addr_range.end_paddr = data & 0x0F;   // last 4  bits are ignored
   }
 
-  flexus_dynlib_fns.qflex_sim_callbacks.trace_mem(cs->cpu_index, mem_trans);
+  qflex_sim_callbacks.trace_mem(cs->cpu_index, mem_trans);
   free(mem_trans);
 
 #ifdef CONFIG_DEBUG_LIBQFLEX
@@ -546,7 +546,7 @@ void flexus_insn_fetch_transaction(CPUARMState *env,
   mem_trans->s.branch_type = cond;
   mem_trans->s.annul = annul;
   mem_trans->arm_specific.user = is_user;
-  flexus_dynlib_fns.qflex_sim_callbacks.trace_mem(cs->cpu_index, mem_trans);
+  qflex_sim_callbacks.trace_mem(cs->cpu_index, mem_trans);
 
 #ifdef CONFIG_DEBUG_LIBQFLEX
   if (is_user == 1)
@@ -625,7 +625,7 @@ void flexus_transaction(CPUARMState *env, logical_address_t vaddr,
 */
   mem_trans->arm_specific.user = is_user;
   mem_trans->io = io;
-  flexus_dynlib_fns.qflex_sim_callbacks.trace_mem(cs->cpu_index, mem_trans);
+  qflex_sim_callbacks.trace_mem(cs->cpu_index, mem_trans);
 
 #ifdef CONFIG_DEBUG_LIBQFLEX
   if (is_user)
@@ -661,7 +661,7 @@ void helper_flexus_magic_ins(CPUARMState *env, int trig_reg, uint64_t cmd_id,
 
   /* Msutherl: If in simulation mode, execute magic_insn callback types. */
   if ((flexus_in_timing() && qflex_control_with_flexus) || flexus_in_trace()) {
-    flexus_dynlib_fns.qflex_sim_callbacks.magic_inst(cpu->cpu_index, cpu->cpu_index);
+    qflex_sim_callbacks.magic_inst(cpu->cpu_index, cpu->cpu_index);
   }
 
   if (cmd_id == 999) {
@@ -711,7 +711,7 @@ void helper_flexus_periodic(CPUARMState *env, int isUser) {
 
     uint64_t eventDelay = 1000;
     if ((instCnt % eventDelay) == 0) {
-      flexus_dynlib_fns.qflex_sim_callbacks.periodic();
+      qflex_sim_callbacks.periodic();
     }
   }
 }
