@@ -140,11 +140,11 @@ void configure_flexus(QemuOpts *opts, Error **errp)
     flexus_state.nb_cores = nb_cores;
 
     // Init QFlex values
-    QFLEX_API_Interface_Hooks_t hooks_from_qemu;
-    FLEXUS_SIM_DYNLIB_CALLBACK_t hooks_to_qemu;
+    QFLEX_TO_QEMU_API_t hooks_from_qemu;
+    QEMU_TO_QFLEX_CALLBACKS_t hooks_to_qemu;
     qflex_api_init((flexus_state.mode == TIMING) ? true : false, sim_cycles);
     QFLEX_API_get_Interface_Hooks(&hooks_from_qemu);
-    flexus_dynlib_fns.qflex_sim_init(&hooks_from_qemu, &hooks_to_qemu, flexus_state.nb_cores, flexus_state.config_file);
+    qflex_init_fn(&hooks_from_qemu, &hooks_to_qemu, flexus_state.nb_cores, flexus_state.config_file);
     QEMU_API_set_Interface_Hooks(&hooks_to_qemu);
 
     // If ext-snap dir is set
