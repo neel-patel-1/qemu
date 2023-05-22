@@ -1,39 +1,39 @@
 [submodule "roms/vgabios"]
 	path = roms/vgabios
-	url = git://git.qemu-project.org/vgabios.git/
+	url = https://github.com/qemu/vgabios.git/
 [submodule "roms/seabios"]
 	path = roms/seabios
-	url = git://git.qemu-project.org/seabios.git/
+	url = https://github.com/qemu/seabios.git/
 [submodule "roms/SLOF"]
 	path = roms/SLOF
-	url = git://git.qemu-project.org/SLOF.git
+	url = https://github.com/qemu/SLOF.git
 [submodule "roms/ipxe"]
 	path = roms/ipxe
-	url = git://git.qemu-project.org/ipxe.git
+	url = https://github.com/qemu/ipxe.git
 [submodule "roms/openbios"]
 	path = roms/openbios
-	url = git://git.qemu-project.org/openbios.git
+	url = https://github.com/qemu/openbios.git
 [submodule "roms/openhackware"]
 	path = roms/openhackware
-	url = git://git.qemu-project.org/openhackware.git
+	url = https://github.com/qemu/openhackware.git
 [submodule "roms/qemu-palcode"]
 	path = roms/qemu-palcode
-	url = https://github.com/rth7680/qemu-palcode.git
+	url = https://github.com/qemu/qemu-palcode.git
 [submodule "roms/sgabios"]
 	path = roms/sgabios
-	url = git://git.qemu-project.org/sgabios.git
+	url = https://github.com/qemu/sgabios.git
 [submodule "dtc"]
 	path = dtc
-	url = git://git.qemu-project.org/dtc.git
+	url = https://github.com/qemu/dtc.git
 [submodule "roms/u-boot"]
 	path = roms/u-boot
-	url = git://git.qemu-project.org/u-boot.git
+	url = https://github.com/qemu/u-boot.git
 [submodule "roms/skiboot"]
 	path = roms/skiboot
-	url = git://git.qemu.org/skiboot.git
+	url = https://github.com/qemu/skiboot.git
 [submodule "roms/QemuMacDrivers"]
 	path = roms/QemuMacDrivers
-	url = git://git.qemu.org/QemuMacDrivers.git
+	url = https://github.com/qemu/QemuMacDrivers.git
 [submodule "pth"]
 	path = pth
 	url = https://github.com/parsa-epfl/pth.git
