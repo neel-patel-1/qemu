@@ -445,12 +445,6 @@ int save_vmstate_ext(Monitor *mon, const char *name)
     strcpy(bs->filename, snapshot_file);
     strcpy(bs->exact_filename, snapshot_file);
 
-    ret = create_tmp_overlay();
-    if (ret < 0) {
-        monitor_printf(mon, "Cannot create temporary overlay %s\n", name);
-        goto end;
-    }
-
     saved_vm_running = runstate_is_running();
 
     ret = global_state_store();
@@ -499,6 +493,12 @@ int save_vmstate_ext(Monitor *mon, const char *name)
     }
 
     qemu_fclose(f);
+
+    ret = create_tmp_overlay();
+    if (ret < 0) {
+        monitor_printf(mon, "Cannot create temporary overlay %s\n", name);
+        goto end;
+    }
 
 end:
     if (saved_vm_running) {

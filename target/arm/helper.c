@@ -11069,18 +11069,36 @@ uint64_t va_to_phys_arch(CPUState *cs, uint64_t vaddr, MMUAccessType access_type
 #ifdef CONFIG_USER_ONLY
     return g2h(vaddr) ? (uint64_t)g2h(vaddr) : -1;
 #endif
-
+    MemTxAttrs attrs = {};
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-    void *phys_addr = NULL;
-    unsigned mmu_idx = cpu_mmu_index(env, (access_type == MMU_INST_FETCH));
+    hwaddr phys_addr;
+    target_ulong page_size;
+    int prot;
+    bool ret;
+    uint32_t fsr;
+    ARMMMUFaultInfo fi = {};
+    ARMMMUIdx mmu_idx = core_to_arm_mmu_idx(env, cpu_mmu_index(env, false));
 
-    phys_addr = tlb_vaddr_to_host(env, vaddr, access_type, mmu_idx);
-
-    if (!phys_addr)
-    {
+    ret = get_phys_addr(env, vaddr, 0, mmu_idx, &phys_addr,
+                        &attrs, &prot, &page_size, &fsr, &fi);
+    if (ret) {
         return -1;
     }
+    return phys_addr;
+
+
+    // ARMCPU *cpu = ARM_CPU(cs);
+    // CPUARMState *env = &cpu->env;
+    // void *phys_addr = NULL;
+    // unsigned mmu_idx = cpu_mmu_index(env, (access_type == MMU_INST_FETCH));
+
+    // phys_addr = tlb_vaddr_to_host(env, vaddr, access_type, mmu_idx);
+
+    // if (!phys_addr)
+    // {
+    //     return -1;
+    // }
 
     return (uint64_t) phys_addr;
 }

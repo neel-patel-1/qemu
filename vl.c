@@ -5081,11 +5081,6 @@ int main(int argc, char **argv, char **envp)
         configure_quantum(quantum_opts, &error_abort);
 #endif
 
-#ifdef CONFIG_FLEXUS
-    if (flexus_opts)
-        configure_flexus(flexus_opts, &error_abort);
-#endif // CONFIG_FLEXUS
-
 #if defined(CONFIG_FLEXUS) && defined(CONFIG_EXTSNAP)
     if (phases_opts)
         configure_phases(phases_opts, &error_abort);
@@ -5146,6 +5141,11 @@ int main(int argc, char **argv, char **envp)
 
     os_setup_post();
 
+#ifdef CONFIG_FLEXUS
+    if (flexus_opts)
+        configure_flexus(flexus_opts, &error_abort);
+#endif // CONFIG_FLEXUS
+
     main_loop();
     replay_disable_events();
     iothread_stop_all();
@@ -5174,6 +5174,7 @@ int main(int argc, char **argv, char **envp)
     qemu_chr_cleanup();
     user_creatable_cleanup();
     /* TODO: unref root container, check all devices are ok */
+
 
     return 0;
 }

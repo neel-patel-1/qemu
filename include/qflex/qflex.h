@@ -97,7 +97,7 @@ int qflex_cpu_step(CPUState *cpu, QFlexExecType_t type);
  * for TCG execution. Type defines how the while loop break.
  */
 int qflex_cpu_exec(CPUState *cpu, QFlexExecType_t type);
-
+void qflex_init(void);
 
 /* Get and Setters for flags and vars
  *
@@ -134,6 +134,7 @@ typedef enum simulation_mode {
 typedef struct flexus_state_t {
     simulation_mode mode;
     int nb_cores;
+    uint64_t sim_cycles;
     const char* config_file; // user_postload
     const char* dynlib_path;
     const char* load_dir;

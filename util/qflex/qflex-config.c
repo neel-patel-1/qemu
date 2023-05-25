@@ -111,8 +111,8 @@ void configure_flexus(QemuOpts *opts, Error **errp)
 
     // Set trace or timing
     flexus_state.mode = strcmp(mode_opt, "timing") == 0 ? TIMING : TRACE;
-    if (sim_cycles == 0) {
-        error_setg(errp, "Refusing to run with ZERO simulation length.");
+    if (!(strcmp(mode_opt, "timing") == 0 || strcmp(mode_opt, "trace") == 0)) {
+        error_setg(errp, "argument for mode=(trace|timing) is wrong: %s\n", mode_opt);
     }
     
     // Load simulator dynamic library
@@ -133,16 +133,21 @@ void configure_flexus(QemuOpts *opts, Error **errp)
         error_setg(errp, "no config file (user_postload) at this path %s\n", config_opt);
     }
 
+    if (sim_cycles == 0) {
+        error_setg(errp, "Refusing to run with ZERO simulation length.");
+    }
+
     if (debug_opt) {
         flexus_state.debug_mode = strdup(debug_opt);
     }
 
     flexus_state.nb_cores = nb_cores;
+    flexus_state.sim_cycles = sim_cycles;
 
     // Init QFlex values
     QFLEX_TO_QEMU_API_t hooks_from_qemu;
     QEMU_TO_QFLEX_CALLBACKS_t hooks_to_qemu;
-    qflex_api_init((flexus_state.mode == TIMING) ? true : false, sim_cycles);
+    qflex_api_init((flexus_state.mode == TIMING) ? true : false, flexus_state.sim_cycles);
     QFLEX_API_get_Interface_Hooks(&hooks_from_qemu);
     qflex_init_fn(&hooks_from_qemu, &hooks_to_qemu, flexus_state.nb_cores, flexus_state.config_file);
     QEMU_API_set_Interface_Hooks(&hooks_to_qemu);
@@ -152,9 +157,19 @@ void configure_flexus(QemuOpts *opts, Error **errp)
         flexus_doLoad(flexus_state.load_dir, NULL);
     }
     // If debug flag is set
-    if (flexus_state.debug_mode) {
+    if (flexus_state.debug_mode){
         flexus_setDebug(flexus_state.debug_mode, NULL);
     }
+}
+
+void qflex_init(void) {
+    // Init QFlex values
+    QFLEX_TO_QEMU_API_t hooks_from_qemu;
+    QEMU_TO_QFLEX_CALLBACKS_t hooks_to_qemu;
+    qflex_api_init((flexus_state.mode == TIMING) ? true : false, flexus_state.sim_cycles);
+    QFLEX_API_get_Interface_Hooks(&hooks_from_qemu);
+    qflex_init_fn(&hooks_from_qemu, &hooks_to_qemu, flexus_state.nb_cores, flexus_state.config_file);
+    QEMU_API_set_Interface_Hooks(&hooks_to_qemu);
 }
 
 void set_flexus_snap_dir(const char* dir_name) {
